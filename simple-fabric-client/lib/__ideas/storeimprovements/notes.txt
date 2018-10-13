@@ -1,0 +1,4 @@
+The cryptosuite and the state store maybe should support a delete call
+that is passed down to the keyvalstore impls, eg
+CryptoKeyStorePlugin to support a deleteKey, that either blanks the key or actually removes it
+then we need a way to invoke it from the client through a deleteUser call
