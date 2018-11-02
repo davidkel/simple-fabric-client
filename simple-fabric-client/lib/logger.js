@@ -15,7 +15,10 @@
 */
 'use strict';
 
-// reuse the client implementation of the logger as we are part of the client
-// abstracted out in case we want to change this in the future.
-const sdkUtils = require('fabric-client/lib/utils');
-module.exports.getLogger = sdkUtils.getLogger;
+class Logger {
+    debug(...args) {
+        console.log(args);
+    }
+}
+
+module.exports.getLogger = new Logger();

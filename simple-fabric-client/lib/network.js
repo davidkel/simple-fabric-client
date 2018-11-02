@@ -122,13 +122,20 @@ class Network {
 		// setup an initial identity for the network
 		if (options.identity) {
 			this.currentIdentity = await options.wallet.setUserContext(this.client, options.identity);
-		}
-	}
+        }
+        if (options.clientTls) {
+            if (options.clientTls.identity) {
+                const tlsIdentity = await options.wallet.export(options.clientTls.identity);
+                this.client.setTlsClientCertAndKey(tlsIdentity.certificate, tlsIdentity.privateKey);
+            } else if (options.clientTls.certificate && options.clientTls.key) {
+                this.client.setTlsClientCertAndKey(options.clientTls.certificate, options.clientTls.key);
 
-	setTlsClientCertAndKey(clientCert, clientKey) {
-		if (this.client) {
-			this.client.setTlsClientCertAndKey(clientCert, clientKey);
+            } else {
+                //TODO: Throw error
+            }
 		}
+
+
 	}
 
 	/**

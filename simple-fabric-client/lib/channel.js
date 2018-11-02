@@ -144,18 +144,22 @@ class Channel {
 		// 2. need to inform existing contracts to swap to the new handlers
 	}
 
-	getContract(chaincodeId) {
+	getContract(chaincodeId, functionNamespace) {
 		// check initialized flag
-		// Create the new Contract
-		let contract = this.contracts.get(chaincodeId);
+        // Create the new Contract
+        const contractKey = functionNamespace ? chaincodeId + '~' + functionNamespace : chaincodeId;
+		let contract = this.contracts.get(contractKey);
 		if (!contract) {
 			contract = 	new Contract(
 				this.channel,
-				chaincodeId,
+                chaincodeId,
+                functionNamespace,
 				this.eventHandlerFactory,
 				this.queryHandler,
-				this.network
-			);
+                this.network
+            );
+            this.contracts.put(contractKey, contract);
+
 		}
 		return contract;
 	}
@@ -176,7 +180,9 @@ class Channel {
 		}
 		if (this.queryHandler) {
 			this.queryHandler.cleanup();
-		}
+        }
+
+        this.channel.close();
 		this.contracts.clear();
 		this.initialized = false;
 	}

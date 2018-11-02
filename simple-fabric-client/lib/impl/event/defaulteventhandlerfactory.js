@@ -89,7 +89,8 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
 		if (orgPeers.length > 0) {
 			for (const orgPeer of orgPeers) {
 				// TODO: could use this.channel.getChannelEventHub() or even getChannelEventHubsForOrg...
-				// these associate the eventhub with the peer
+                // these associate the eventhub with the peer
+                // TODO: Need to add a timeout
 				let eventHub = this.channel.newChannelEventHub(orgPeer);
 				eventHub._EVH_mspId = mspId;  // insert the mspId into the object
 				this.addEventHub(eventHub);

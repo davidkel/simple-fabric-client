@@ -26,6 +26,10 @@ const memoryStore = new Map();
 
 class InMemoryWallet extends BaseWallet {
 
+	constructor(walletmixin) {
+		super(walletmixin);
+	}
+
 	async getStateStore(label) {
 		label = this.normalizeLabel(label);
 		const store = await new InMemoryKVS(label);
@@ -41,7 +45,11 @@ class InMemoryWallet extends BaseWallet {
 
 	async delete(label) {
 		label = this.normalizeLabel(label);
-		memoryStore.delete(label);
+		if (memoryStore.has(label)) {
+			memoryStore.delete(label);
+			return true;
+		}
+        return false;
 	}
 
 	async exists(label) {

@@ -42,8 +42,8 @@ declare namespace FabricNetwork {
 	}
 }
 export class Contract extends EventEmitter {
-	query(transactionName: string, parameters: string[], txId?: TransactionId): Promise<Buffer>;
-	submitTransaction(transactionName: string, parameters: string[], txId?: TransactionId): Promise<Buffer>;
+	evalTransation(transactionName: string, parameters: string[], transientMap?: Map<string, Buffer>, txId?: TransactionId): Promise<Buffer>;
+	submitTransaction(transactionName: string, parameters: string[], , transientMap?: Map<string, Buffer>, txId?: TransactionId): Promise<Buffer>;
 }
 
 //-------------------------------------------

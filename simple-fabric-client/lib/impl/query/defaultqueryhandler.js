@@ -124,7 +124,7 @@ class DefaultQueryHandler extends QueryHandler {
 			args: args
 		};
 
-		const payloads = await this.channel.queryByChaincode(request);
+		const payloads = await this.queryByChaincode(request);
 		if (!payloads.length) {
 			throw new Error('No payloads were returned from the query request:' + functionName);
 		}
@@ -138,7 +138,42 @@ class DefaultQueryHandler extends QueryHandler {
 
 		return payload;
 
-	}
+    }
+
+    /**
+     * Perform a chaincode query and parse the responses.
+     * @param {object} request the proposal for a query
+     * @return {array} the responses
+     */
+    async queryByChaincode(request) {
+        const method = 'queryByChaincode';
+        try {
+            const results = await this.channel.sendTransactionProposal(request);
+            const responses = results[0];
+            if (responses && Array.isArray(responses)) {
+                let results = [];
+                for (let i = 0; i < responses.length; i++) {
+                    let response = responses[i];
+                    if (response instanceof Error) {
+                        results.push(response);
+                    }
+                    else if (response.response && response.response.payload) {
+                        results.push(response.response.payload);
+                    }
+                    else {
+                        results.push(new Error(response));
+                    }
+                }
+                LOG.exit(method);
+                return results;
+            }
+            const err = new Error('Payload results are missing from the chaincode query');
+            throw err;
+        } catch(err) {
+            throw err;
+        }
+    }
+}
 }
 
 module.exports = DefaultQueryHandler;

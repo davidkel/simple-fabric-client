@@ -16,10 +16,11 @@ const EventEmitter = require('events');
 
 class Contract extends EventEmitter {
 
-	constructor(channel, chaincodeId, eventHandlerFactory, queryHandler, network) {
+	constructor(channel, chaincodeId, functionNamespace, eventHandlerFactory, queryHandler, network) {
 		super();
 		this.channel = channel;
-		this.chaincodeId = chaincodeId;
+        this.chaincodeId = chaincodeId;
+        this.functionNamespace = functionNamespace;
 		this.eventHandlerFactory = eventHandlerFactory;
 		this.network = network;
 		this.queryHandler = queryHandler;
@@ -91,7 +92,7 @@ class Contract extends EventEmitter {
      * @param {string[]} parameters transaction parameters
      * @returns {byte[]} payload response
      */
-	async executeTransaction(transactionName, parameters, txId) {
+	async evalTransaction(transactionName, parameters, txId) {
 		//TODO: Need to check parameters
 		if (!txId) {
 			txId = this.network.getClient().newTransactionID();
@@ -106,7 +107,7 @@ class Contract extends EventEmitter {
 	 * @param {TransactionId} txId optional own transactionId to use
      * @returns {byte[]} payload response
      */
-	async submitTransaction(transactionName, parameters, txId) {
+	async submitTransaction(transactionName, parameters, transientMap, txId) {
 		//TODO: Need to check parameters
 
 		if (!txId) {
@@ -124,7 +125,10 @@ class Contract extends EventEmitter {
 		}
 
 
-		// Submit the transaction to the endorsers.
+        // Submit the transaction to the endorsers.
+        if (this.functionNamespace) {
+            transactionName = this.functionNamespace + ':' + transactionNamel;
+        }
 		const request = {
 			chaincodeId: this.chaincodeId,
 			txId,
@@ -185,7 +189,7 @@ class Contract extends EventEmitter {
 		console.log('returns: ', proposalResponses[0].response.payload);
 
 		let result = null;
-		if (validResponses[0].response.payload && validResponses[0].response.payload.length > 0) {
+		if (validResponses[0].response.payload) {
 			result = validResponses[0].response.payload;
 		}
 		return result;

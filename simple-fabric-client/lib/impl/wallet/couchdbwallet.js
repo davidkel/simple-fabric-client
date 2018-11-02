@@ -1,91 +1,144 @@
-/*
- Copyright 2018 IBM All Rights Reserved.
-
- Licensed under the Apache License, Version 2.0 (the "License");
- you may not use this file except in compliance with the License.
- You may obtain a copy of the License at
-
-		http://www.apache.org/licenses/LICENSE-2.0
-
- Unless required by applicable law or agreed to in writing, software
- distributed under the License is distributed on an "AS IS" BASIS,
- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- See the License for the specific language governing permissions and
- limitations under the License.
-*/
+/**
+ * Copyright 2018 IBM All Rights Reserved.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 'use strict';
 
 const Client = require('fabric-client');
-const CouchDBKVStore = require('fabric-client/lib/impl/CouchDBKeyValueStore');
 const BaseWallet = require('./basewallet');
+const CouchDBVStore = require('fabric-client/lib/impl/CouchDBKeyValueStore');
 const Nano = require('nano');
-
-const PREFIX = '$identity_$';
+/**
+ * This class defines an implementation of an Identity wallet that persists
+ * to a Couch DB database
+ *
+ * @class
+ * @extends {BaseWallet}
+ */
 class CouchDBWallet extends BaseWallet {
 
-	// {url: 'http://localhost:5984'}
+	/**
+	 * Creates an instance of the CouchDBWallet
+	 * @param {Object} options contains required property <code>url</code> and other Nano options
+	 * @param {WalletMixin} mixin
+	 * @memberof CouchDBWallet
+	 */
 	constructor(options, mixin) {
+		const method = 'constructor';
 		super(mixin);
+		if (!options) {
+			throw new Error('No options given');
+		}
+		if (!options.url) {
+			throw new Error('No url given');
+		}
 		this.options = options;
 		this.couch = Nano(options.url);
 		this.dbOptions = {};
 		Object.assign(this.dbOptions, this.options);
 	}
 
-	_createOptions(label) {
-		label = this.normalizeLabel(label);
+	_createOptions() {
 		const dbOptions = {};
 		Object.assign(dbOptions, this.options);
-		dbOptions.name = PREFIX + label;
+		dbOptions.name = 'wallet';
 		return dbOptions;
 	}
 
+	/**
+	 * @inheritdoc
+	 */
 	async getStateStore(label) {
-		const store = await new CouchDBKVStore(this._createOptions(label));
+		const method = 'getStateStore';
+		const store = new CouchDBWalletKeyValueStore(this._createOptions());
 		return store;
 	}
 
+	/**
+	 * @inheritdoc
+	 */
 	async getCryptoSuite(label) {
+		const method = 'getCryptoSuite';
 		const cryptoSuite = Client.newCryptoSuite();
-		cryptoSuite.setCryptoKeyStore(Client.newCryptoKeyStore(CouchDBKVStore, this._createOptions(label)));
+		cryptoSuite.setCryptoKeyStore(Client.newCryptoKeyStore(CouchDBWalletKeyValueStore, this._createOptions()));
 		return cryptoSuite;
 	}
 
+	/**
+	 * @inheritdoc
+	 */
 	async delete(label) {
+		const method = 'delete';
 		label = this.normalizeLabel(label);
-		const name = PREFIX + label;
-		return new Promise((resolve, reject) => {
-			this.couch.db.destroy(name, (err) => {
-				if (err === null) {
-					resolve(true);
-				}
-				resolve(false);
-			});
-		});
+		const kvs = await this.getStateStore(this.options.name);
+		return kvs.delete(label);
 	}
 
+	/**
+	 * @inheritdoc
+	 */
 	async exists(label) {
+		const method = 'exists';
 		label = this.normalizeLabel(label);
-		const name = PREFIX + label;
-		return new Promise((resolve, reject) => {
-			this.couch.db.get(name, (err) => {
-				if (err === null) {
-					resolve(true);
+		const kvs = await this.getStateStore(this.options.name);
+		return kvs.exists(label);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	async getAllLabels() {
+		const method = 'getAllLabels';
+		const kvs = await this.getStateStore(this.options.name);
+		return kvs.getAllLabels();
+	}
+}
+
+class CouchDBWalletKeyValueStore extends CouchDBVStore {
+	constructor(options) {
+		super(options);
+	}
+
+	async delete(key) {
+		const self = this;
+		return new Promise((resolve) => {
+			self._database.destroy(key, (err) => {
+				if (err) {
+					return resolve(false);
 				}
-				resolve(false);
+				return resolve(true);
 			});
 		});
 	}
 
-	async getAllLabels(hint = null) {
-		this.couch.db.list((err, list) => {
-			return list.map((entry) => {
-				if (entry.startsWith(PREFIX)) {
-					return entry.substring(PREFIX.length);
+	async exists(key) {
+		const self = this;
+		return new Promise((resolve, reject) => {
+			self._database.get(key, (err) => {
+				if (err) {
+					if (err.error === 'not_found') {
+						return resolve(false);
+					} else {
+						return reject(err);
+					}
+				} else {
+					return resolve(true);
 				}
 			});
 		});
-		return null;
+	}
+
+	async getAllLabels() {
+		const self = this;
+		return new Promise((resolve, reject) => {
+			self._database.list((err, list) => {
+				if (err) {
+					return reject(err);
+				}
+				return resolve(list);
+			});
+		});
 	}
 }
 
