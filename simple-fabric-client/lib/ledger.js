@@ -14,7 +14,7 @@
 const FabricConstants = require('fabric-client/lib/Constants');
 const Contract = require('./contract');
 
-class Channel {
+class Ledger {
 
 	constructor(network, channel) {
 		this.network = network;
@@ -73,6 +73,7 @@ class Channel {
 		//TODO: should sort peer list to the identity org initializing the channel.
 		//TODO: Candidate to push to low level node-sdk.
 
+        // TODO: need to deal with discovery here as not sure it will have roles.
 		const ledgerPeers = this.channel.getPeers().filter((cPeer) => {
 			return cPeer.isInRole(FabricConstants.NetworkConfig.LEDGER_QUERY_ROLE);
 		});
@@ -129,7 +130,7 @@ class Channel {
 		this.initialized = true;
 	}
 
-	getInternalChannel() {
+	getChannel() {
 		return this.channel;
 	}
 

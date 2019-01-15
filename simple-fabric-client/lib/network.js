@@ -16,7 +16,7 @@
 'use strict';
 
 const Client = require('fabric-client');
-const Channel = require('./channel');
+const Ledger = require('./ledger');
 const DefaultEventStrategies = require('./impl/event/defaulteventstrategies');
 const logger = require('./logger').getLogger('Network');
 
@@ -41,7 +41,7 @@ class Network {
 		logger.debug('in Network constructor');
 		this.client = null;
 		this.wallet = null;
-		this.channels = new Map();
+		this.ledgers = new Map();
 
 		// default options
 		this.options = {
@@ -219,24 +219,23 @@ class Network {
 	 * @memberof Network
 	 */
 	dispose() {
-		for (const channel of this.channels.values()) {
-			channel._dispose();
+		for (const ledger of this.ledgers.values()) {
+			ledger._dispose();
 		}
-		this.channels.clear();
+		this.ledgers.clear();
 	}
 
-	async getChannel(channelName) {
-		const existingChannel = this.channels.get(channelName);
-		if (!existingChannel) {
+	async getLedger(channelName) {
+		const existingLedger = this.ledgers.get(channelName);
+		if (!existingLedger) {
 			const channel = this.client.getChannel(channelName);
-			const newChannel = new Channel(this, channel);
-			await newChannel._initialize();
-			this.channels.set(channelName, newChannel);
-			return newChannel;
+			const newLedger = new Ledger(this, channel);
+			await newLedger._initialize();
+			this.ledgers.set(channelName, newLedger);
+			return newLedger;
 		}
-		return existingChannel;
+		return existingLedger;
 	}
 }
-
 
 module.exports = Network;

@@ -15,7 +15,7 @@
 */
 
 module.exports.Network = require('./lib/network');
-module.exports.IDManager = require('./lib/idmanager');  // will go
+module.exports.IDManager = require('./lib/idmanager');
 
 module.exports.FileSystemWallet = require('./lib/impl/wallet/filesystemwallet');
 module.exports.InMemoryWallet = require('./lib/impl/wallet/inmemorywallet');
