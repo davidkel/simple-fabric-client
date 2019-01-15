@@ -12,200 +12,203 @@ const fs = require('fs');
 
 (async () => {
 
-	const testHSM = process.env.CRYPTO_PKCS11_LIB && process.env.CRYPTO_PKCS11_SLOT && process.env.CRYPTO_PKCS11_PIN;
+    const testHSM = process.env.CRYPTO_PKCS11_LIB && process.env.CRYPTO_PKCS11_SLOT && process.env.CRYPTO_PKCS11_PIN;
 
-	// Perform some identity management first
-	const wallet = new FileSystemWallet('./WALLETS/wallet');
+    // Perform some identity management first
+    const wallet = new FileSystemWallet('./WALLETS/wallet');
 
-	let hsmwallet;
-	if (testHSM) {
-		hsmwallet = new FileSystemWallet('./WALLETS/hsmwallet', new HSMWalletMixin());
-	}
+    let hsmwallet;
+    if (testHSM) {
+        hsmwallet = new FileSystemWallet('./WALLETS/hsmwallet', new HSMWalletMixin());
+    }
 
-	//const couchdbwallet = new CouchDBWallet({url: 'http://localhost:5984'});
+    //const couchdbwallet = new CouchDBWallet({url: 'http://localhost:5984'});
 
-	const inMemoryWallet = new InMemoryWallet();
+    const inMemoryWallet = new InMemoryWallet();
 
-	// load crypto material into the in memory wallet
-	const cert = fs.readFileSync('./dave/cert.pem').toString();
-	const key = fs.readFileSync('./dave/key.pem').toString();
-	await inMemoryWallet.import('dave', X509WalletMixin.createIdentity('Org1MSP', cert, key));
-	const exists = await inMemoryWallet.exists('dave');
-	console.log('Dave exists:', exists);
-
-
-	// TODO maybe network could also read the file directly
-	const bufferDiscovery = fs.readFileSync('./ccp-discovery.json');
-	const buffer = fs.readFileSync('./ccp.json');
-
-	let hsmNetwork;
-	let network;
-	let memNetwork;
-	let queryNetwork;
-
-	try {
-		const idManager = new IDManager();
-		idManager.initialize(JSON.parse(bufferDiscovery.toString()));
-
-		// now we are ready to interact with the network
-		//TODO: should an app provide a wallet implementation or a URI string which represents an implementation to be
-		// loaded by the network class.
-
-		// Create a network bound to an hsm wallet
-		if (testHSM) {
-			hsmNetwork = new Network();
-			await hsmNetwork.initialize(JSON.parse(buffer.toString()), {
-				wallet: hsmwallet
-			});
-		}
-
-		// Create a network bound to a standard filesystem wallet
-		network = new Network();
-		await network.initialize(JSON.parse(buffer.toString()), {
-			wallet: wallet,
-			eventHandlerOptions: {
-				useFullBlocks: true
-			}
-		});
-
-		// create a query only network
-		console.log('creating a query only network instance');
-		queryNetwork = new Network();
-		await queryNetwork.initialize(JSON.parse(buffer.toString()), {
-			wallet: wallet,
-			identity: 'admin',
-			eventHandlerFactory: null
-		});
+    // load crypto material into the in memory wallet
+    const cert = fs.readFileSync('./dave/cert.pem').toString();
+    const key = fs.readFileSync('./dave/key.pem').toString();
+    await inMemoryWallet.import('dave', X509WalletMixin.createIdentity('Org1MSP', cert, key));
+    const exists = await inMemoryWallet.exists('dave');
+    console.log('Dave exists:', exists);
 
 
-		// Create a network bound to an in memory wallet and discover
-		memNetwork = new Network();
-		await memNetwork.initialize(JSON.parse(bufferDiscovery.toString()), { // TODO: should use bufferDiscovery but there is a potential issue with SDK
-			wallet: inMemoryWallet,
-			identity: 'dave',
-			useDiscovery: true,
-			discoveryOptions: {
-				discoveryProtocol: 'grpc',
-				asLocalhost: true
-			}
-		});
+    // TODO maybe network could also read the file directly
+    const bufferDiscovery = fs.readFileSync('./ccp-discovery.json');
+    const buffer = fs.readFileSync('./ccp.json');
 
-		// see if admin exists in the standard non hsm wallet, if not get an identity from the Id Manager and stick it in the wallet
-		const adminExists = await wallet.exists('admin');
-		if (!adminExists) {
-			await idManager.enrollToWallet('admin', 'adminpw', 'Org1MSP', wallet);
-			// now that there are some identities in the wallet, we can tell the network(s) to use them
-		}
-		const id = await wallet.export('admin');
-		console.log('exported x509 identity', id);
-		console.log('listing all identities in a wallet');
-		const idInfoList = await wallet.list();
-		console.log(idInfoList);
-		for (const idInfo of idInfoList) {
-			console.log(`name=${idInfo.label}, mspId=${idInfo.mspId}, identifier=${idInfo.identifier}`);
-		}
-		await network.setIdentity('admin');
+    let hsmNetwork;
+    let network;
+    let memNetwork;
+    let queryNetwork;
 
-		// see if HSMUser is in the HSM filesystem wallet, and if not register one assuming it has never been registered otherwise
-		// we need to remember the secret, then enroll the identity into the hsm wallet which ensures the keys are stored in the hsm.
-		let hsmUser = 'HSMUser3';
+    try {
+        const idManager = new IDManager();
+        idManager.initialize(JSON.parse(bufferDiscovery.toString()));
 
-		if (testHSM) {
-			const hsmUserExists = await hsmwallet.exists(hsmUser);
-			if (!hsmUserExists) {
-				let secret = await idManager.registerUser(hsmUser, null, wallet, 'admin');
-				console.log(hsmUser, '=', secret);
-				await idManager.enrollToWallet(hsmUser, secret, 'Org1MSP', hsmwallet);
-			}
-			const id = await hsmwallet.export(hsmUser);
-			console.log('exported hsm identity', id);
-			// now that there are some identities in the wallet, we can tell the network(s) to use them
-			await hsmNetwork.setIdentity(hsmUser);
-		}
+        // now we are ready to interact with the network
+        //TODO: should an app provide a wallet implementation or a URI string which represents an implementation to be
+        // loaded by the network class.
 
-		try {
-			let contract;
-			let response;
-			let blockToQuery;
-			let channel;
+        // Create a network bound to an hsm wallet
+        if (testHSM) {
+            hsmNetwork = new Network();
+            await hsmNetwork.initialize(JSON.parse(buffer.toString()), {
+                wallet: hsmwallet
+            });
+        }
 
-			console.log('---> start testing network with file system identity:');
-			channel = await network.getChannel('composerchannel');
-			contract = await channel.getContract('demo');
+        // Create a network bound to a standard filesystem wallet
+        network = new Network();
+        await network.initialize(JSON.parse(buffer.toString()), {
+            wallet: wallet,
+            eventHandlerOptions: {
+                useFullBlocks: true
+            }
+        });
 
-			let eventHubs = channel.getEventHubs();
+        // see if admin exists in the standard non hsm wallet, if not get an identity from the Id Manager and stick it in the wallet
+        const adminExists = await wallet.exists('admin');
+        if (!adminExists) {
+            console.log('admin not there, enrolling');
+            await idManager.enrollToWallet('admin', 'adminpw', 'Org1MSP', wallet);
+            // now that there are some identities in the wallet, we can tell the network(s) to use them
+        }
+        const id = await wallet.export('admin');
+        console.log('exported x509 identity', id);
+        console.log('listing all identities in a wallet');
+        const idInfoList = await wallet.list();
+        console.log(idInfoList);
+        for (const idInfo of idInfoList) {
+            console.log(`name=${idInfo.label}, mspId=${idInfo.mspId}, identifier=${idInfo.identifier}`);
+        }
 
-			eventHubs[0].registerBlockEvent((block) => {  //TODO: Note that eventHubs have a special field defining which mspId they are in.
-				console.log('block---->');
-				console.log(block);
-				blockToQuery = block.header.number;
-			});
+        await network.setIdentity('admin');
 
-			response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-			console.log('got response 1: ' + response);
-
-			let rawchannel = channel.getInternalChannel();
-			let blk = await rawchannel.queryBlock(blockToQuery * 1);
-			console.log('blk--->');
-			console.log(JSON.stringify(blk.data.data[0].payload.data.actions));
-			console.log('<--- Finish testing network with file system identity');
+        // create a query only network
+        console.log('creating a query only network instance');
+        queryNetwork = new Network();
+        await queryNetwork.initialize(JSON.parse(buffer.toString()), {
+            wallet: wallet,
+            identity: 'admin',
+            eventHandlerFactory: null
+        });
 
 
+        // Create a network bound to an in memory wallet and discover
+        memNetwork = new Network();
+        await memNetwork.initialize(JSON.parse(bufferDiscovery.toString()), { // TODO: should use bufferDiscovery but there is a potential issue with SDK
+            wallet: inMemoryWallet,
+            identity: 'dave',
+            useDiscovery: true,
+            discoveryOptions: {
+                discoveryProtocol: 'grpc',
+                asLocalhost: true
+            }
+        });
 
-			console.log('---> start testing query only network with file system identity:');
-			channel = await queryNetwork.getChannel('composerchannel');
-			contract = await channel.getContract('demo');
-			response = await contract.executeTransaction('query', ['key1']);
-			console.log('got response: ' + response);
-			console.log('<--- Finish testing query only network with file system identity');
+
+        // see if HSMUser is in the HSM filesystem wallet, and if not register one assuming it has never been registered otherwise
+        // we need to remember the secret, then enroll the identity into the hsm wallet which ensures the keys are stored in the hsm.
+        let hsmUser = 'HSMUser3';
+
+        if (testHSM) {
+            const hsmUserExists = await hsmwallet.exists(hsmUser);
+            if (!hsmUserExists) {
+                let secret = await idManager.registerUser(hsmUser, null, wallet, 'admin');
+                console.log(hsmUser, '=', secret);
+                await idManager.enrollToWallet(hsmUser, secret, 'Org1MSP', hsmwallet);
+            }
+            const id = await hsmwallet.export(hsmUser);
+            console.log('exported hsm identity', id);
+            // now that there are some identities in the wallet, we can tell the network(s) to use them
+            await hsmNetwork.setIdentity(hsmUser);
+        }
+
+        try {
+            let contract;
+            let response;
+            let blockToQuery;
+            let ledger;
+
+            console.log('---> start testing network with file system identity:');
+            ledger = await network.getLedger('composerchannel');
+            contract = await ledger.getContract('demo');
+
+            let eventHubs = ledger.getEventHubs();
+
+            eventHubs[0].registerBlockEvent((block) => {  //TODO: Note that eventHubs have a special field defining which mspId they are in.
+                console.log('block---->');
+                console.log(block);
+                blockToQuery = block.header.number;
+            });
+
+            response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+            console.log('got response 1: ' + response);
+
+            let rawchannel = ledger.getChannel();
+            let blk = await rawchannel.queryBlock(blockToQuery * 1);
+            console.log('blk--->');
+            console.log(JSON.stringify(blk.data.data[0].payload.data.actions));
+            console.log('<--- Finish testing network with file system identity');
 
 
 
-			console.log('---> start testing network with in memory identity:');
-			channel = await memNetwork.getChannel('composerchannel');
-			contract = await channel.getContract('demo');
-			response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-			console.log('got response: ' + response);
-			response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-			console.log('got response: ' + response);
-			console.log('testing query');
-			response = await contract.executeTransaction('query', ['key1']);
-			console.log('got response: ' + response);
-
-			//response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-			//response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-			//response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-			//response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-			console.log('<--- finish testing network with in memory identity:');
+            console.log('---> start testing query only network with file system identity:');
+            ledger = await queryNetwork.getLedger('composerchannel');
+            contract = await ledger.getContract('demo');
+            response = await contract.query('query', ['key1']);
+            console.log('got response: ' + response);
+            console.log('<--- Finish testing query only network with file system identity');
 
 
 
+            console.log('---> start testing network with in memory identity:');
+            ledger = await memNetwork.getLedger('composerchannel');
+            contract = await ledger.getContract('demo');
+            response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+            console.log('got response: ' + response);
+            response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+            console.log('got response: ' + response);
+            console.log('testing query');
+            response = await contract.query('query', ['key1']);
+            console.log('got response: ' + response);
 
-			if (testHSM) {
-				console.log('---> start testing network with hsm identity:');
-				channel = await hsmNetwork.getChannel('composerchannel');
-				contract = await channel.getContract('demo');
-				response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
-				console.log('got response: ' + response);
-				console.log('<--- finish testing network with hsm identity:');
-			}
+            //response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+            //response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+            //response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+            //response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+            console.log('<--- finish testing network with in memory identity:');
 
-		} catch(error) {
-			console.log('got submitTransaction error', error);
-		}
-	} catch(error) {
-		console.log(error);
-	} finally {
-		console.log('cleaning up');
-		queryNetwork.dispose();
-		memNetwork.dispose();
-		network.dispose();
-		if (testHSM) {
-			hsmNetwork.dispose();
-			HSMWalletMixin.closeDown();
-		}
-		process.exit(0);  // needed because using HSM causes app to hang at the end.
-	}
+
+
+
+            if (testHSM) {
+                console.log('---> start testing network with hsm identity:');
+                ledger = await hsmNetwork.getLedger('composerchannel');
+                contract = await ledger.getContract('demo');
+                response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
+                console.log('got response: ' + response);
+                console.log('<--- finish testing network with hsm identity:');
+            }
+
+        } catch(error) {
+            console.log('got submitTransaction error', error);
+        }
+    } catch(error) {
+        console.log(error);
+    } finally {
+        console.log('cleaning up');
+        queryNetwork.dispose();
+        memNetwork.dispose();
+        network.dispose();
+        if (testHSM) {
+            hsmNetwork.dispose();
+            HSMWalletMixin.closeDown();
+        }
+        process.exit(0);  // needed because using HSM causes app to hang at the end.
+    }
 
 
 })();

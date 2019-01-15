@@ -16,24 +16,24 @@
 
 class QueryHandler {
 
-	constructor(channel, mspId, peerMap, queryOptions) {
-		this.channel = channel;
-		this.mspId = mspId;
-		this.peerMap = peerMap;
-		this.queryOptions = queryOptions;
-	}
+    constructor(channel, mspId, peerMap, queryOptions) {
+        this.channel = channel;
+        this.mspId = mspId;
+        this.peerMap = peerMap;
+        this.queryOptions = queryOptions;
+    }
 
-	async initialize() {
-		return;
-	}
+    async initialize() {
+        return;
+    }
 
-	async queryChaincode(chaincodeId, functionName, params, txId) {
-		throw new Error('Not implemented');
-	}
+    async queryChaincode(chaincodeId, functionName, params, txId) {
+        throw new Error('Not implemented');
+    }
 
-	cleanup() {
-		return;
-	}
+    cleanup() {
+        return;
+    }
 }
 
 module.exports = QueryHandler;

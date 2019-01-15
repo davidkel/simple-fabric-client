@@ -21,4 +21,4 @@ class Logger {
     }
 }
 
-module.exports.getLogger = new Logger();
+module.exports.getLogger = () => {return new Logger();};

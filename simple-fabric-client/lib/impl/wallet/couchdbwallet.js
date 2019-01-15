@@ -18,128 +18,128 @@ const Nano = require('nano');
  */
 class CouchDBWallet extends BaseWallet {
 
-	/**
-	 * Creates an instance of the CouchDBWallet
-	 * @param {Object} options contains required property <code>url</code> and other Nano options
-	 * @param {WalletMixin} mixin
-	 * @memberof CouchDBWallet
-	 */
-	constructor(options, mixin) {
-		const method = 'constructor';
-		super(mixin);
-		if (!options) {
-			throw new Error('No options given');
-		}
-		if (!options.url) {
-			throw new Error('No url given');
-		}
-		this.options = options;
-		this.couch = Nano(options.url);
-		this.dbOptions = {};
-		Object.assign(this.dbOptions, this.options);
-	}
+    /**
+     * Creates an instance of the CouchDBWallet
+     * @param {Object} options contains required property <code>url</code> and other Nano options
+     * @param {WalletMixin} mixin
+     * @memberof CouchDBWallet
+     */
+    constructor(options, mixin) {
+        const method = 'constructor';
+        super(mixin);
+        if (!options) {
+            throw new Error('No options given');
+        }
+        if (!options.url) {
+            throw new Error('No url given');
+        }
+        this.options = options;
+        this.couch = Nano(options.url);
+        this.dbOptions = {};
+        Object.assign(this.dbOptions, this.options);
+    }
 
-	_createOptions() {
-		const dbOptions = {};
-		Object.assign(dbOptions, this.options);
-		dbOptions.name = 'wallet';
-		return dbOptions;
-	}
+    _createOptions() {
+        const dbOptions = {};
+        Object.assign(dbOptions, this.options);
+        dbOptions.name = 'wallet';
+        return dbOptions;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	async getStateStore(label) {
-		const method = 'getStateStore';
-		const store = new CouchDBWalletKeyValueStore(this._createOptions());
-		return store;
-	}
+    /**
+     * @inheritdoc
+     */
+    async getStateStore(label) {
+        const method = 'getStateStore';
+        const store = new CouchDBWalletKeyValueStore(this._createOptions());
+        return store;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	async getCryptoSuite(label) {
-		const method = 'getCryptoSuite';
-		const cryptoSuite = Client.newCryptoSuite();
-		cryptoSuite.setCryptoKeyStore(Client.newCryptoKeyStore(CouchDBWalletKeyValueStore, this._createOptions()));
-		return cryptoSuite;
-	}
+    /**
+     * @inheritdoc
+     */
+    async getCryptoSuite(label) {
+        const method = 'getCryptoSuite';
+        const cryptoSuite = Client.newCryptoSuite();
+        cryptoSuite.setCryptoKeyStore(Client.newCryptoKeyStore(CouchDBWalletKeyValueStore, this._createOptions()));
+        return cryptoSuite;
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	async delete(label) {
-		const method = 'delete';
-		label = this.normalizeLabel(label);
-		const kvs = await this.getStateStore(this.options.name);
-		return kvs.delete(label);
-	}
+    /**
+     * @inheritdoc
+     */
+    async delete(label) {
+        const method = 'delete';
+        label = this.normalizeLabel(label);
+        const kvs = await this.getStateStore(this.options.name);
+        return kvs.delete(label);
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	async exists(label) {
-		const method = 'exists';
-		label = this.normalizeLabel(label);
-		const kvs = await this.getStateStore(this.options.name);
-		return kvs.exists(label);
-	}
+    /**
+     * @inheritdoc
+     */
+    async exists(label) {
+        const method = 'exists';
+        label = this.normalizeLabel(label);
+        const kvs = await this.getStateStore(this.options.name);
+        return kvs.exists(label);
+    }
 
-	/**
-	 * @inheritdoc
-	 */
-	async getAllLabels() {
-		const method = 'getAllLabels';
-		const kvs = await this.getStateStore(this.options.name);
-		return kvs.getAllLabels();
-	}
+    /**
+     * @inheritdoc
+     */
+    async getAllLabels() {
+        const method = 'getAllLabels';
+        const kvs = await this.getStateStore(this.options.name);
+        return kvs.getAllLabels();
+    }
 }
 
 class CouchDBWalletKeyValueStore extends CouchDBVStore {
-	constructor(options) {
-		super(options);
-	}
+    constructor(options) {
+        super(options);
+    }
 
-	async delete(key) {
-		const self = this;
-		return new Promise((resolve) => {
-			self._database.destroy(key, (err) => {
-				if (err) {
-					return resolve(false);
-				}
-				return resolve(true);
-			});
-		});
-	}
+    async delete(key) {
+        const self = this;
+        return new Promise((resolve) => {
+            self._database.destroy(key, (err) => {
+                if (err) {
+                    return resolve(false);
+                }
+                return resolve(true);
+            });
+        });
+    }
 
-	async exists(key) {
-		const self = this;
-		return new Promise((resolve, reject) => {
-			self._database.get(key, (err) => {
-				if (err) {
-					if (err.error === 'not_found') {
-						return resolve(false);
-					} else {
-						return reject(err);
-					}
-				} else {
-					return resolve(true);
-				}
-			});
-		});
-	}
+    async exists(key) {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            self._database.get(key, (err) => {
+                if (err) {
+                    if (err.error === 'not_found') {
+                        return resolve(false);
+                    } else {
+                        return reject(err);
+                    }
+                } else {
+                    return resolve(true);
+                }
+            });
+        });
+    }
 
-	async getAllLabels() {
-		const self = this;
-		return new Promise((resolve, reject) => {
-			self._database.list((err, list) => {
-				if (err) {
-					return reject(err);
-				}
-				return resolve(list);
-			});
-		});
-	}
+    async getAllLabels() {
+        const self = this;
+        return new Promise((resolve, reject) => {
+            self._database.list((err, list) => {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve(list);
+            });
+        });
+    }
 }
 
 module.exports = CouchDBWallet;

@@ -5,7 +5,7 @@
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
 
-		http://www.apache.org/licenses/LICENSE-2.0
+        http://www.apache.org/licenses/LICENSE-2.0
 
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,41 +17,41 @@
 
 class Wallet {
 
-	// ===============================================
-	// SPI Methods
-	// ===============================================
+    // ===============================================
+    // SPI Methods
+    // ===============================================
 
-	async setUserContext(client, label) {
-		throw new Error('Not implemented');
-	}
+    async setUserContext(client, label) {
+        throw new Error('Not implemented');
+    }
 
-	async configureClientStores(client, label) {
-		throw new Error('Not implemented');
-	}
+    async configureClientStores(client, label) {
+        throw new Error('Not implemented');
+    }
 
-	//=========================================================
-	// End user APIs
-	//=========================================================
+    //=========================================================
+    // End user APIs
+    //=========================================================
 
-	async import(label, identity) {
-		throw new Error('Not implemented');
-	}
+    async import(label, identity) {
+        throw new Error('Not implemented');
+    }
 
-	async export(label) {
-		throw new Error('Not implemented');
-	}
+    async export(label) {
+        throw new Error('Not implemented');
+    }
 
-	async list() {
-		throw new Error('Not implemented');
-	}
+    async list() {
+        throw new Error('Not implemented');
+    }
 
-	async delete(label) {
-		throw new Error('Not implemented');
-	}
+    async delete(label) {
+        throw new Error('Not implemented');
+    }
 
-	async exists(label) {
-		throw new Error('Not implemented');
-	}
+    async exists(label) {
+        throw new Error('Not implemented');
+    }
 }
 
 module.exports = Wallet;

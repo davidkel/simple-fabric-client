@@ -1,4 +1,9 @@
-source ./setup.sh
+source ./setup_bin.sh
+if [[ ! -n "$VER"  ]]; then
+    echo VER not defined, eg export VER=1.2.1
+	exit 1
+fi
+
 # ---> Dev mode fabric
 
 # standard dev mode single peer

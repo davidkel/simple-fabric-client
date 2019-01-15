@@ -30,83 +30,83 @@ const QueryHandler = require('../../api/queryhandler');
  */
 class DefaultQueryHandler extends QueryHandler {
 
-	/**
+    /**
      * constructor
      */
-	constructor(channel, mspId, peerMap, queryOptions) {
-		super(channel, mspId, peerMap, queryOptions);
-		this.allQueryablePeers = peerMap.get(mspId);  //TODO: should remove peers that don't have the CHAINCODE_QUERY ROLE ?
-		this.queryPeerIndex = -1;
-	}
+    constructor(channel, mspId, peerMap, queryOptions) {
+        super(channel, mspId, peerMap, queryOptions);
+        this.allQueryablePeers = peerMap.get(mspId);  //TODO: should remove peers that don't have the CHAINCODE_QUERY ROLE ?
+        this.queryPeerIndex = -1;
+    }
 
-	/**
+    /**
      * Query Chaincode using the following rules
      * 1. try the last successful peer
      * 2. If that fails or this is the first time try all query peers in order
      * Currently the implementation restricts to only peers in the same organisation, not across the channel.
-	 * @param {string} chaincodeId the chaincode id to use
+     * @param {string} chaincodeId the chaincode id to use
      * @param {string} functionName the function name to invoke
      * @param {string[]} args the arguments
      * @param {TransactionID} txId the transaction id to use
      * @returns {object} asynchronous response or async error.
      */
-	async queryChaincode(chaincodeId, functionName, args, txId) {
-		let success = false;
-		let payload;
-		const allErrors = [];
+    async queryChaincode(chaincodeId, functionName, args, txId) {
+        let success = false;
+        let payload;
+        const allErrors = [];
 
-		if (this.allQueryablePeers.length === 0) {
-			const newError = new Error('No peers have been provided that can be queried');
-			throw newError;
-		}
+        if (this.allQueryablePeers.length === 0) {
+            const newError = new Error('No peers have been provided that can be queried');
+            throw newError;
+        }
 
-		// try the last successful peer
-		if (this.queryPeerIndex !== -1) {
-			const peer = this.allQueryablePeers[this.queryPeerIndex];
-			try {
-				payload = await this._querySinglePeer(peer, chaincodeId, functionName, args, txId);
-				success = true;
-			} catch (error) {
-				allErrors.push(error);
-			}
-		}
+        // try the last successful peer
+        if (this.queryPeerIndex !== -1) {
+            const peer = this.allQueryablePeers[this.queryPeerIndex];
+            try {
+                payload = await this._querySinglePeer(peer, chaincodeId, functionName, args, txId);
+                success = true;
+            } catch (error) {
+                allErrors.push(error);
+            }
+        }
 
-		if (!success) {
+        if (!success) {
 
-			// last successful peer failed or this is the first attempt at any query, so try to find a
-			// peer to query.
-			const failedPeer = this.queryPeerIndex;  // could be -1 if first attempt
-			this.queryPeerIndex = -1;
-			for (let i = 0; i < this.allQueryablePeers.length && !success; i++) {
-				if (i === failedPeer) {
-					continue;
-				}
-				const peer = this.allQueryablePeers[i];
-				try {
-					payload = await this._querySinglePeer(peer, chaincodeId, functionName, args, txId);
-					this.queryPeerIndex = i;
-					success = true;
-					break;
-				} catch (error) {
-					allErrors.push(error);
-				}
-			}
-		}
+            // last successful peer failed or this is the first attempt at any query, so try to find a
+            // peer to query.
+            const failedPeer = this.queryPeerIndex;  // could be -1 if first attempt
+            this.queryPeerIndex = -1;
+            for (let i = 0; i < this.allQueryablePeers.length && !success; i++) {
+                if (i === failedPeer) {
+                    continue;
+                }
+                const peer = this.allQueryablePeers[i];
+                try {
+                    payload = await this._querySinglePeer(peer, chaincodeId, functionName, args, txId);
+                    this.queryPeerIndex = i;
+                    success = true;
+                    break;
+                } catch (error) {
+                    allErrors.push(error);
+                }
+            }
+        }
 
-		if (!success) {
-			const newError = new Error(`No peers available to query. last error was ${allErrors[allErrors.length-1]}`);
-			throw newError;
-		}
+        if (!success) {
+            const newError = new Error(`No peers available to query. last error was ${allErrors[allErrors.length-1]}`);
+            throw newError;
+        }
 
-		if (payload instanceof Error) {
-			throw payload;
-		}
+        if (payload instanceof Error) {
+            throw payload;
+        }
 
-		return payload;
+        return payload;
 
-	}
+    }
 
-	/**
+    /**
      * Send a query
      * @param {Peer} peer The peer to query
      * @param {string} chaincodeId the chaincode id to use
@@ -115,28 +115,28 @@ class DefaultQueryHandler extends QueryHandler {
      * @param {TransactionID} txId the transaction id to use
      * @returns {Buffer} asynchronous response to query
      */
-	async _querySinglePeer(peer, chaincodeId, functionName, args, txId) {
-		const request = {
-			targets: [peer],
-			chaincodeId,
-			txId: txId,
-			fcn: functionName,
-			args: args
-		};
+    async _querySinglePeer(peer, chaincodeId, functionName, args, txId) {
+        const request = {
+            targets: [peer],
+            chaincodeId,
+            txId: txId,
+            fcn: functionName,
+            args: args
+        };
 
-		const payloads = await this.queryByChaincode(request);
-		if (!payloads.length) {
-			throw new Error('No payloads were returned from the query request:' + functionName);
-		}
-		const payload = payloads[0];
+        const payloads = await this.queryByChaincode(request);
+        if (!payloads.length) {
+            throw new Error('No payloads were returned from the query request:' + functionName);
+        }
+        const payload = payloads[0];
 
-		// if it has a code value is 14, means unavailable, so throw that error
-		// code 2 looks like it is a chaincode response that was an error.
-		if (payload instanceof Error && payload.code && payload.code === 14) {
-			throw payload;
-		}
+        // if it has a code value is 14, means unavailable, so throw that error
+        // code 2 looks like it is a chaincode response that was an error.
+        if (payload instanceof Error && payload.code && payload.code === 14) {
+            throw payload;
+        }
 
-		return payload;
+        return payload;
 
     }
 
@@ -164,7 +164,6 @@ class DefaultQueryHandler extends QueryHandler {
                         results.push(new Error(response));
                     }
                 }
-                LOG.exit(method);
                 return results;
             }
             const err = new Error('Payload results are missing from the chaincode query');
@@ -174,7 +173,7 @@ class DefaultQueryHandler extends QueryHandler {
         }
     }
 }
-}
+
 
 module.exports = DefaultQueryHandler;
 
