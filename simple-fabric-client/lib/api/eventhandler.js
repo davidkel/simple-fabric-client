@@ -40,7 +40,7 @@ class EventHandlerFactory {
         return;
     }
 
-    cleanup() {
+    dispose() {
         this.disconnectEventHubs();
         this.availableEventHubs = [];
         return;

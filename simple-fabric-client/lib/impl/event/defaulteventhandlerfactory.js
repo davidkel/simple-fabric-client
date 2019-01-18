@@ -57,8 +57,8 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
         }
     }
 
-    cleanup() {
-        super.cleanup();
+    dispose() {
+        super.dispose();
         this.initialized = false;
     }
 

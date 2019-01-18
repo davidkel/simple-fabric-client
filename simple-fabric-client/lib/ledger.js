@@ -177,10 +177,10 @@ class Ledger {
         // channel.cleanup() followed by channel.initialize() be safe ?
         // make this private is the safest option.
         if (this.eventHandlerFactory) {
-            this.eventHandlerFactory.cleanup();
+            this.eventHandlerFactory.dispose();
         }
         if (this.queryHandler) {
-            this.queryHandler.cleanup();
+            this.queryHandler.dispose();
         }
 
         this.channel.close();

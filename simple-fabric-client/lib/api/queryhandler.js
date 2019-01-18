@@ -31,7 +31,7 @@ class QueryHandler {
         throw new Error('Not implemented');
     }
 
-    cleanup() {
+    dispose() {
         return;
     }
 }
