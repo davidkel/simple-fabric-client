@@ -14,7 +14,7 @@
 
 'use strict';
 //const FABRIC_CONSTANTS = require('fabric-client/lib/Constants');
-const QueryHandler = require('../../api/queryhandler');
+const BaseQueryHandler = require('./basequeryhandler');
 
 /**
  * Class to provide intelligence on how to query peers when peers are not available.
@@ -28,7 +28,7 @@ const QueryHandler = require('../../api/queryhandler');
  * for a new peer from the top of the list, ignoring the one that just failed.
  * @private
  */
-class DefaultQueryHandler extends QueryHandler {
+class DefaultQueryHandler extends BaseQueryHandler {
 
     /**
      * constructor
@@ -105,75 +105,7 @@ class DefaultQueryHandler extends QueryHandler {
         return payload;
 
     }
-
-    /**
-     * Send a query
-     * @param {Peer} peer The peer to query
-     * @param {string} chaincodeId the chaincode id to use
-     * @param {string} functionName the function name of the query
-     * @param {array} args the arguments to ass
-     * @param {TransactionID} txId the transaction id to use
-     * @returns {Buffer} asynchronous response to query
-     */
-    async _querySinglePeer(peer, chaincodeId, functionName, args, txId) {
-        const request = {
-            targets: [peer],
-            chaincodeId,
-            txId: txId,
-            fcn: functionName,
-            args: args
-        };
-
-        const payloads = await this.queryByChaincode(request);
-        if (!payloads.length) {
-            throw new Error('No payloads were returned from the query request:' + functionName);
-        }
-        const payload = payloads[0];
-
-        // if it has a code value is 14, means unavailable, so throw that error
-        // code 2 looks like it is a chaincode response that was an error.
-        if (payload instanceof Error && payload.code && payload.code === 14) {
-            throw payload;
-        }
-
-        return payload;
-
-    }
-
-    /**
-     * Perform a chaincode query and parse the responses.
-     * @param {object} request the proposal for a query
-     * @return {array} the responses
-     */
-    async queryByChaincode(request) {
-        const method = 'queryByChaincode';
-        try {
-            const results = await this.channel.sendTransactionProposal(request);
-            const responses = results[0];
-            if (responses && Array.isArray(responses)) {
-                let results = [];
-                for (let i = 0; i < responses.length; i++) {
-                    let response = responses[i];
-                    if (response instanceof Error) {
-                        results.push(response);
-                    }
-                    else if (response.response && response.response.payload) {
-                        results.push(response.response.payload);
-                    }
-                    else {
-                        results.push(new Error(response));
-                    }
-                }
-                return results;
-            }
-            const err = new Error('Payload results are missing from the chaincode query');
-            throw err;
-        } catch(err) {
-            throw err;
-        }
-    }
 }
-
 
 module.exports = DefaultQueryHandler;
 
