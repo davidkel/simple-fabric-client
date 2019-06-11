@@ -88,5 +88,6 @@ class BaseQueryHandler extends QueryHandler {
             throw err;
         }
     }
-
 }
+
+module.exports = BaseQueryHandler;
