@@ -17,25 +17,11 @@
 
 const Client = require('fabric-client');
 const Ledger = require('./ledger');
-const DefaultEventStrategies = require('./impl/event/defaulteventstrategies');
 const logger = require('./logger').getLogger('Network');
+const utils = require('./utils');
 
 
 class Network {
-
-    static _mergeOptions(defaultOptions, suppliedOptions) {
-        for (const prop in suppliedOptions) {
-            if (suppliedOptions[prop] instanceof Object && prop.endsWith('Options')) {
-                if (defaultOptions[prop] === undefined) {
-                    defaultOptions[prop] = suppliedOptions[prop];
-                } else {
-                    Network._mergeOptions(defaultOptions[prop], suppliedOptions[prop]);
-                }
-            } else {
-                defaultOptions[prop] = suppliedOptions[prop];
-            }
-        }
-    }
 
     constructor() {
         logger.debug('in Network constructor');
@@ -43,18 +29,10 @@ class Network {
         this.wallet = null;
         this.ledgers = new Map();
 
-        // default options
+        // default options (plugin options are not defaulted here as may not be applicable if plugin changed)
         this.options = {
-            commitTimeout: 300 * 1000,
-            eventHandlerFactory: './impl/event/defaulteventhandlerfactory',
-            eventHandlerOptions: {
-                //TODO: Should we make this explicit rather than default ?
-                strategy: DefaultEventStrategies.MSPID_SCOPE_ALLFORTX,
-                timeout: 60
-            },
+            eventManager: './impl/event/defaulteventmanager',
             queryHandler: './impl/query/defaultqueryhandler',
-            queryHandlerOptions: {
-            },
             // TODO: discovery-cache-age (only used by getDiscoveryResults)
             // TODO: We need a timeout when submitTransaction is called to determine if a refresh should
             // be made.
@@ -81,32 +59,36 @@ class Network {
             throw new Error('A wallet must be assigned to a Network instance');
         }
 
+        /*
         // if the default handlers have been changed, delete the default options before merging.
-        if (options.eventHandlerFactory && this.options.eventHandlerFactory !== options.eventHandlerFactory) {
+        if (options.eventManager && this.options.eventManager !== options.eventManager) {
             console.log('deleting event handler options');
-            delete this.options.eventHandlerOptions;
+            delete this.options.eventMgmtOptions;
         }
         if (options.queryHandler && this.options.queryHandler !== options.queryHandlerFactory) {
             delete this.options.queryHandlerOptions;
         }
+        */
 
-        Network._mergeOptions(this.options, options);
+        utils._mergeOptions(this.options, options);
 
-
-        if (this.options.eventHandlerFactory) {
+        // require the event manager and query handler plugins
+        if (this.options.eventManager) {
             try {
-                this.eventHandlerFactoryClass = require(this.options.eventHandlerFactory);
+                this.eventManagerClass = require(this.options.eventManager);
             } catch(error) {
                 console.log(error);
-                throw new Error('unable to load provided event handler factory: ' + this.options.eventHandlerFactory);
+                throw new Error('unable to load provided event handler factory: ' + this.options.eventManager);
             }
         }
 
-        try {
-            this.queryHandlerClass = require(this.options.queryHandler);
-        } catch(error) {
-            console.log(error);
-            throw new Error('unable to load provided query handler: ' + this.options.queryHandler);
+        if (this.options.queryHandler) {
+            try {
+                this.queryHandlerClass = require(this.options.queryHandler);
+            } catch(error) {
+                console.log(error);
+                throw new Error('unable to load provided query handler: ' + this.options.queryHandler);
+            }
         }
 
         // These are global to the app, but would assume you won't want a mixture of discover and non discover
@@ -122,6 +104,8 @@ class Network {
         // setup an initial identity for the network
         if (options.identity) {
             this.currentIdentity = await options.wallet.setUserContext(this.client, options.identity);
+        } else {
+            //TODO: throw error, must provide an identity and a wallet.
         }
         if (options.clientTls) {
             if (options.clientTls.identity) {
@@ -134,8 +118,6 @@ class Network {
                 //TODO: Throw error
             }
         }
-
-
     }
 
     /**
@@ -144,6 +126,7 @@ class Network {
      * @param {*} newIdentity
      * @memberof Network
      */
+    /*
     async setIdentity(newIdentity) {
         //TODO: what to do if mspId changes ? all contracts are not useable as the default query peers and maybe the event
         // hubs are tied to a specific mspId. What happens if users write their own handlers ?
@@ -155,6 +138,7 @@ class Network {
         }
         this.currentIdentity = await this.options.wallet.setUserContext(this.client, newIdentity);
     }
+    */
 
     /**
      * get the current identity
@@ -181,23 +165,25 @@ class Network {
         return this.options;
     }
 
-    async _createEventHandlerFactory(channel, peerMap) {
+    // create an instance of the event manager and initialise it.
+    async _createEventManager(channel, peerMap) {
 
-        if (this.eventHandlerFactoryClass) {
+        if (this.eventManagerClass) {
             // TODO: Should not use private var of User object (_mspId)
             const currentmspId = this.getCurrentIdentity()._mspId;
-            const eventHandlerFactory = new this.eventHandlerFactoryClass(
+            const eventManager = new this.eventManagerClass(
                 channel,
                 currentmspId,
                 peerMap,
-                this.options.eventHandlerOptions
+                this.options.eventMgmtOptions
             );
-            await eventHandlerFactory.initialize();
-            return eventHandlerFactory;
+            await eventManager.initialize();
+            return eventManager;
         }
         return null;
     }
 
+    // create an instance of the query handler and initialise it.
     async _createQueryHandler(channel, peerMap) {
         if (this.queryHandlerClass) {
             const currentmspId = this.getCurrentIdentity()._mspId;
@@ -225,9 +211,11 @@ class Network {
         this.ledgers.clear();
     }
 
+    // get a ledger initialise it and cache it, otherwise use the cached version
     async getLedger(channelName) {
         const existingLedger = this.ledgers.get(channelName);
         if (!existingLedger) {
+            // TODO: will throw an error if no channel and discovery is being used.
             const channel = this.client.getChannel(channelName);
             const newLedger = new Ledger(this, channel);
             await newLedger._initialize();

@@ -24,7 +24,8 @@ class Ledger {
         this.discoveryOptions = options.discoveryOptions;
         this.useDiscovery = options.useDiscovery;
 
-        this.eventHandlerFactory;
+        this.eventManager;
+        this.eventListener;
         this.queryHandler;
         this.peerMap;
         this.contracts = new Map();
@@ -120,7 +121,7 @@ class Ledger {
         // TODO: we need to filter down the event source peers based on roles, for now we will assume all in the peerMap are event sources
         // or assume the plugins do the work
         // create an event handler factory for the channel
-        this.eventHandlerFactory = await this.network._createEventHandlerFactory(this.channel, this.peerMap);
+        this.eventManager = await this.network._createEventManager(this.channel, this.peerMap);
 
         // TODO: we need to filter down the queryable peers based on roles, for now we will assume all in the peerMap are chaincode queryable
         // or assume the plugins do the work
@@ -134,17 +135,42 @@ class Ledger {
         return this.channel;
     }
 
+    /*
     getPeerMap() {
         return this.peerMap;
     }
+    */
 
     async rediscover() {
         // TODO: This still needs to be done
         // what happens if the list of peers changes ?
-        // 1. need to rebuild an eventHandlerFactory and queryHandler for the channel
+        // 1. need to rebuild an eventManager and queryHandler for the channel
         // 2. need to inform existing contracts to swap to the new handlers
     }
 
+    registerBlockListener(callback, options) {
+        if (!this.eventListener) {
+            this.eventListener = this.eventManager.createEventListener();
+        }
+        return this.eventListener.registerBlockListener(callback, options);
+    }
+
+    unRegisterBlockListener(handle) {
+        if (!this.eventListener) {
+            return;
+        }
+        return this.eventListener.unRegisterBlockListener(handle);
+    }
+
+    registerContractsListener(callback, options) {
+
+    }
+
+    unregisterContractsListener(handle) {
+
+    }
+
+    // get a contract or return a cached contract
     getContract(chaincodeId, functionNamespace) {
         // check initialized flag
         // Create the new Contract
@@ -155,7 +181,7 @@ class Ledger {
                 this.channel,
                 chaincodeId,
                 functionNamespace,
-                this.eventHandlerFactory,
+                this.eventManager,
                 this.queryHandler,
                 this.network
             );
@@ -165,19 +191,21 @@ class Ledger {
         return contract;
     }
 
+    /*
     getEventHubs() {
-        if (this.eventHandlerFactory) {
-            return this.eventHandlerFactory.getEventHubs();
+        if (this.eventManager) {
+            return this.eventManager.getEventHubs();
         }
         return [];
     }
+    */
 
     _dispose() {
         // Danger as this cached in network, and also async so how would
         // channel.cleanup() followed by channel.initialize() be safe ?
         // make this private is the safest option.
-        if (this.eventHandlerFactory) {
-            this.eventHandlerFactory.dispose();
+        if (this.eventManager) {
+            this.eventManager.dispose();
         }
         if (this.queryHandler) {
             this.queryHandler.dispose();

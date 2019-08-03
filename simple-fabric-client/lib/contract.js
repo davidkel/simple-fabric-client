@@ -16,23 +16,16 @@ const EventEmitter = require('events');
 
 class Contract extends EventEmitter {
 
-    constructor(channel, chaincodeId, functionNamespace, eventHandlerFactory, queryHandler, network) {
+    constructor(channel, chaincodeId, functionNamespace, eventManager, queryHandler, network) {
         super();
         this.channel = channel;
         this.chaincodeId = chaincodeId;
         this.functionNamespace = functionNamespace;
-        this.eventHandlerFactory = eventHandlerFactory;
-        this.network = network;
-        this.queryHandler = queryHandler;
 
-        if (this.eventHandlerFactory && this.eventHandlerFactory.chaincodeEventsEnabled()) {
-            this.once('newListener', (eventName, listener) => {
-                this.eventHandlerFactory.createChaincodeEventHandler(chaincodeId, eventName).on('chaincodeEvent'/* or eventName*/, (event) => {
-                    this.emit(eventName, event);
-                });
-            });
-            // cleanup of the chaincode listeners is done when the network is cleaned up.
-        }
+
+        this.eventManager = eventManager;
+        this.queryHandler = queryHandler;
+        this.network = network;
     }
 
     /**
@@ -81,6 +74,7 @@ class Contract extends EventEmitter {
         if (validResponses.length === 0) {
             const errorMessages = [ 'No valid responses from any peers.' ];
             invalidResponseMsgs.forEach(invalidResponse => errorMessages.push(invalidResponse));
+            // TODO: add invalid proposals as a property to the error object
             throw new Error(errorMessages.join('\n'));
         }
 
@@ -101,17 +95,21 @@ class Contract extends EventEmitter {
         return result ? result : null;
     }
 
+    createTxId() {
+        return this.network.getClient().newTransactionID();
+    }
+
     /**
      * @param {string} transactionName transaction name
      * @param {string[]} parameters transaction parameters
-     * @param {TransactionId} txId optional own transactionId to use
+     * @param {TransactionId} txId optional own transactionId to use, get your own via createTxId()
      * @returns {byte[]} payload response
      */
     async submitTransaction(transactionName, parameters, transientMap, txId) {
         //TODO: Need to check parameters
 
         if (!txId) {
-            txId = this.network.getClient().newTransactionID();
+            txId = this.createTxId();
         }
 
         // check the event hubs and connect any that have lost connection
@@ -119,9 +117,11 @@ class Contract extends EventEmitter {
         // startListening will do a more sledge hammer approach to try
         // to ensure everything is avalable. But that is upto the
         // eventhandler to implement.
-        // TODO: Should we have a blocking soln here for example ?
-        if (this.eventHandlerFactory) {
-            this.eventHandlerFactory.checkEventHubs();
+        // This is a fast pre-check which doesn't have to be implemented
+        let commitHandler;
+        if (this.eventManager) {
+            commitHandler = this.eventManager.createCommitHandler(txId.getTransactionID());
+            commitHandler.checkEventHubs();
         }
 
         // Submit the transaction to the endorsers.
@@ -149,10 +149,8 @@ class Contract extends EventEmitter {
         // Submit the endorsed transaction to the primary orderers.
         const proposal = results[1];
 
-        let eventHandler;
-        if (this.eventHandlerFactory) {
-            eventHandler = this.eventHandlerFactory.createTxEventHandler(txId.getTransactionID());
-            await eventHandler.startListening();
+        if (commitHandler) {
+            await commitHandler.startListening();
         }
 
         //TODO: more to do regarding checking the response (see hlfconnection.invokeChaincode)
@@ -163,20 +161,21 @@ class Contract extends EventEmitter {
         });
 
         if (response.status !== 'SUCCESS') {
-            if (eventHandler) {
-                eventHandler.cancelListening();
+            if (commitHandler) {
+                commitHandler.cancelListening();
             }
             throw new Error(`Failed to send peer responses for transaction '${txId.getTransactionID()}' to orderer. Response status '${response.status}'`);
         }
 
         console.log('waiting for events');
-        if (eventHandler) {
+        if (commitHandler) {
             try {
-                await eventHandler.waitForEvents();
+                await commitHandler.waitForEvents();
             } catch(err) {
                 // TODO: Need to distinguish between Bad Peer response and something else
                 if (validResponses && validResponses.length >= 2 && !this.channel.compareProposalResponseResults(validResponses)) {
                     const warning = 'Peers do not agree, Read Write sets differ';
+                    console.log(warning);
                     //TODO: What should be done here
                     //LOG.warn(method, warning);
                 }
@@ -192,8 +191,13 @@ class Contract extends EventEmitter {
             result = validResponses[0].response.payload;
         }
         return result;
-
     }
+
+
+    // Two ways we could have done chaincode event handling here
+    // 1. register a listener using addEventListener(), or do on as this is an event emitter
+    // 2. Almost always want to use full blocks, but couldn't allow for replay so probably better
+    // 3. to implement our own event emitter pattern
 }
 
 module.exports = Contract;

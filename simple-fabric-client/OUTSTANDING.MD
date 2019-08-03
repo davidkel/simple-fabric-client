@@ -2,8 +2,8 @@
 - Examples and Docs
 - Unit tests, package tests, integration tests
 - logging
-- What about IDManager ?
 - variables should not use org but mspId
+- do I care about the mspId ? could just use getPeers and getPeersForOrg, should also be able to use getMspId method
 
 # Performance:
 
@@ -23,29 +23,19 @@
 - Need to filter down the peerMap to only include queryable peers
 
 
-# Contracts:
-- Should identities be at the network level or contract level ? See below, but then contracts would need their own event hubs maybe to share for ids in the same msp
-- Switching identities in a network, how do existing contracts handle ? - Bad idea, not going to do it. Event hubs are connected using an identity so
-  should you be allowed to switch identities but continue to use those event hubs ? maybe ok if you have access to both identities but then there
-  is the case of what if you changed the identity to a different mspid. So for now Identity is locked to an instance of the network class
-
-- getContract should return a cached getContract
-
-
-
-Network --> Client + User
-Channel --> Channel + ChannelEventHub
-Contract
-Wallet
-
-
-
-
+# Other
 - share peer objects across channels (but roles is channel specific, so may have to separate roles from the peers)
 - txid do we want to hide completely ?
 - discovery may not be limited to channel level may be able to discover at a higher level
 - txId changes, not a concern for us we just use the basic nounce, txid string
-- can't share eventhubs as they are connected using a specific identity, and I don't like the idea of constant connect/disconnect option
+- can't share eventhubs as they are connected using a specific identity, but could consider the option to allow
+
+
+# Identities: (This isn't possible)
+- Should identities be at the network level or contract level ? See below, but then contracts would need their own event hubs maybe to share for ids in the same msp
+- Switching identities in a network, how do existing contracts handle ? - Bad idea, not going to do it. Event hubs are connected using an identity so
+  should you be allowed to switch identities but continue to use those event hubs ? maybe ok if you have access to both identities but then there
+  is the case of what if you changed the identity to a different mspid. So for now Identity is locked to an instance of the network class
 
 
 

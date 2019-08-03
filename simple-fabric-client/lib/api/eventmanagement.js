@@ -21,81 +21,61 @@
  */
 
 
+/*
+ * Purpose of the event handler factory: life cycle is managed by the ledger object
+ * as the ledger as the ledger === channel and event management is at a channel level.
+ * The factory owns the event hubs being used for the particular strategy.
+ */
+class EventManager {
 
-class EventHandlerFactory {
-
+    /**
+     *
+     * @param {*} channel The channel to use
+     * @param {*} mspId the mspid of the application owner
+     * @param {*} peerMap a map of all the peers by mspid
+     * @param {*} options plugin specific options
+     */
     constructor(channel, mspId, peerMap, options) {
         this.channel = channel;
         this.peerMap = peerMap;
         this.options = options;
         this.mspId = mspId;
-
-        // available event hubs, not necessarily connected event hubs, just ones that
-        // are available to be tried
-        //TODO: how should this be stored and returned for end users to use.
-    }
-
-    async initialize() {
-        this.availableEventHubs = [];
-        return;
-    }
-
-    dispose() {
-        this.disconnectEventHubs();
-        this.availableEventHubs = [];
-        return;
-    }
-
-    addEventHub(eventHub) {
-        this.availableEventHubs.push(eventHub);
-    }
-
-    getEventHubs() {
-        return this.availableEventHubs;
-    }
-
-    setEventHubs(availableEventHubs) {
-        this.availableEventHubs = availableEventHubs;
     }
 
     /**
-     * check the status of the event hubs and attempt to reconnect any event hubs.
-     * This is a non waitable request, should we have a waitable one ?
+     * initialise the factory. This would establish the event hubs to be used
+     * perhaps based on options and mspids
      */
-    checkEventHubs() {
-        for(const hub of this.availableEventHubs) {
-            hub.checkConnection(true);
-        }
-    }
-
-    disconnectEventHubs() {
-        for (const hub of this.availableEventHubs) {
-            try {
-                hub.disconnect();
-            } catch (error) {
-                //
-            }
-        }
-    }
-
-    createTxEventHandler(txid) {
+    async initialize() {
         throw new Error('not implemented');
     }
 
-
-    // Stretch goal stuff for chaincode event handling
-    chaincodeEventsEnabled() {
-        return false;
-    }
-
-    createChaincodeEventHandler(chaincodeId, eventName) {
+    /**
+     * dispose of this factory and perform any cleanup required
+     */
+    async dispose() {
         throw new Error('not implemented');
     }
 
+    /**
+     * create a tx event handler for the specific transaction id.
+     * @param {string} txid Transaction id
+     */
+    createCommitHandler(txid) {
+        throw new Error('not implemented');
+    }
+
+    createEventListener() {
+        throw new Error('not implemented');
+    }
 }
 
 
-class TxEventHandler {
+class CommitHandler {
+
+    checkEventHubs() {
+        // optional fast check of the event hubs
+    }
 
     /**
      * Start listening for events.
@@ -120,8 +100,36 @@ class TxEventHandler {
     }
 }
 
+class EventListener {
+    registerBlockListener(callback) {
+
+    }
+
+    unRegisterBlockListener(handle) {
+
+    }
+
+    registerCCListener(chaincodeId, callback) {
+
+    }
+
+    unRegisterCCListener(handle) {
+
+    }
+
+    registerTxListener(txid, callback) {
+
+    }
+
+    unRegisterTxListener(handle) {
+
+    }
+
+}
+
 
 module.exports = {
-    EventHandlerFactory,
-    TxEventHandler
+    EventManager,
+    CommitHandler,
+    EventListener
 };

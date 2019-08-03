@@ -5,7 +5,7 @@
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
 
-		http://www.apache.org/licenses/LICENSE-2.0
+http://www.apache.org/licenses/LICENSE-2.0
 
  Unless required by applicable law or agreed to in writing, software
  distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,6 +13,8 @@
  See the License for the specific language governing permissions and
  limitations under the License.
 */
+
+'use strict';
 
 module.exports.Network = require('./lib/network');
 module.exports.IDManager = require('./lib/idmanager');
@@ -23,9 +25,9 @@ module.exports.HSMWalletMixin = require('./lib/impl/wallet/hsmwalletmixin');
 module.exports.X509WalletMixin = require('./lib/impl/wallet/x509walletmixin');
 module.exports.CouchDBWallet = require('./lib/impl/wallet/couchdbwallet');
 
-module.exports.EventHandlerConstants = require('./lib/impl/event/defaulteventstrategies');
+module.exports.CommitHandlerConstants = require('./lib/defaultcommitstrategies');
 
 module.exports.Wallet = require('./lib/api/wallet');
-module.exports.EventHandlerFactory = require('./lib/api/eventhandler').EventHandlerFactory;
-module.exports.TxEventHandler = require('./lib/api/eventhandler').TxEventHandler;
+module.exports.EventManager = require('./lib/api/eventmanagement').EventManager;
+module.exports.CommitHandler = require('./lib/api/eventmanagement').CommitHandler;
 module.exports.QueryHandler = require('./lib/api/queryhandler');

@@ -15,14 +15,14 @@
 */
 'use strict';
 
-const {TxEventHandler} = require('../../api/eventhandler');
-const EventHandlerConstants = require('./defaulteventstrategies');
+const {CommitHandler} = require('../../api/eventmanagement');
+const CommitHandlerConstants = require('../../defaultcommitstrategies');
 
 const STRATEGY_PASSED = 1;
 const STRATEGY_STILLONGOING = 0;
 const STRATEGY_FAILED = -1;
 
-class DefaultTxEventHandler extends TxEventHandler {
+class DefaultCommitHandler extends CommitHandler {
 
     /**
      * Check the connectivity status of an event hub
@@ -66,23 +66,24 @@ class DefaultTxEventHandler extends TxEventHandler {
         this.timeoutHandle = null;
 
         // build the strategy map
+        // how to handle a custom one ?
         this.strategyMap = new Map([
-            [EventHandlerConstants.MSPID_SCOPE_ALLFORTX, {
+            [CommitHandlerConstants.MSPID_SCOPE_ALLFORTX, {
                 checkInitialState: this._checkInitialCountByMspId,
                 eventReceived: this._checkRemainingEventsForMspId,
                 errorReceived: this._checkRemainingEventsForMspId
             }],
-            [EventHandlerConstants.MSPID_SCOPE_ANYFORTX, {
+            [CommitHandlerConstants.MSPID_SCOPE_ANYFORTX, {
                 checkInitialState: this._checkInitialCountByMspId,
                 eventReceived: () => { return STRATEGY_PASSED;},
                 errorReceived: this._checkRemainingEventsForMspId
             }],
-            [EventHandlerConstants.CHANNEL_SCOPE_ALLFORTX, {
+            [CommitHandlerConstants.CHANNEL_SCOPE_ALLFORTX, {
                 checkInitialState: this._checkInitialCountByMspId,
                 eventReceived: this._checkEachMspIdForEvents,
                 errorReceived: this._checkEachMspIdForEvents
             }],
-            [EventHandlerConstants.CHANNEL_SCOPE_ANYFORTX, {
+            [CommitHandlerConstants.CHANNEL_SCOPE_ANYFORTX, {
                 checkInitialState: this._checkInitialCountTotal,
                 eventReceived: () => { return STRATEGY_PASSED;},
                 errorReceived: this._checkRemainingEventsForAll
@@ -96,7 +97,7 @@ class DefaultTxEventHandler extends TxEventHandler {
      * of a specific mspid, then there will only be a single MSPid set to check
      *
      *
-     * @memberof DefaultTxEventHandler
+     * @memberof DefaultCommitHandler
      */
     async _checkInitialCountByMspId() {
         console.log('eventCount', this.eventsByMspId);
@@ -129,7 +130,7 @@ class DefaultTxEventHandler extends TxEventHandler {
      * check that there is at least 1 event hub
      *
      *
-     * @memberof DefaultTxEventHandler
+     * @memberof DefaultCommitHandler
      */
     async _checkInitialCountTotal() {
         let total = 0;
@@ -159,7 +160,7 @@ class DefaultTxEventHandler extends TxEventHandler {
      * @param {*} mspId
      * @param {*} count
      * @returns
-     * @memberof DefaultTxEventHandler
+     * @memberof DefaultCommitHandler
      */
     _checkRemainingEventsForMspId(mspId, count) {
         if (count.remaining < 1) {
@@ -181,7 +182,7 @@ class DefaultTxEventHandler extends TxEventHandler {
      * @param {*} mspid
      * @param {*} count
      * @returns
-     * @memberof DefaultTxEventHandler
+     * @memberof DefaultCommitHandler
      */
     _checkEachMspIdForEvents(mspid, count) {
         let passed = true;
@@ -214,7 +215,7 @@ class DefaultTxEventHandler extends TxEventHandler {
      * @param {*} mspId
      * @param {*} count
      * @returns
-     * @memberof DefaultTxEventHandler
+     * @memberof DefaultCommitHandler
      */
     _checkRemainingEventsForAll(mspId, count) {
         let totalleft = 0;
@@ -238,7 +239,7 @@ class DefaultTxEventHandler extends TxEventHandler {
         for (const eventHub of this.eventHubs) {
             // we can guarantee that at this point if an event hub could be connected then
             // it will have been flagged as connected.
-            if (DefaultTxEventHandler.eventHubConnected(eventHub)) {
+            if (DefaultCommitHandler.eventHubConnected(eventHub)) {
                 connectedHubs.push(eventHub);
                 let count = this.eventsByMspId.get(eventHub._EVH_mspId);
                 if (!count) {
@@ -278,6 +279,10 @@ class DefaultTxEventHandler extends TxEventHandler {
         }
     }
 
+    checkEventHubs() {
+        this.factory._checkCommitEventHubs();
+    }
+
     /**
      * Start listening for events.
      */
@@ -301,7 +306,7 @@ class DefaultTxEventHandler extends TxEventHandler {
         this.timeoutHandle = setTimeout(() => {
             this.cancelListening();
             txReject(new Error('Event strategy not satisified within the timeout period'));
-        }, this.options.timeout * 1000);
+        }, this.options.commitTimeout * 1000);
 
         for (const hub of this.connectedHubs) {
             console.log('registering for event');
@@ -367,4 +372,4 @@ class DefaultTxEventHandler extends TxEventHandler {
     }
 }
 
-module.exports = DefaultTxEventHandler;
+module.exports = DefaultCommitHandler;

@@ -1,7 +1,10 @@
 'use strict';
 //const FABRIC_CONSTANTS = require('fabric-client/lib/Constants');
 const BaseQueryHandler = require('./basequeryhandler');
+const FABRIC_CONSTANTS = require('fabric-client/lib/Constants');
 
+
+// TODO: Need to require FABRIC-CONSTANTS
 // can contain peers from all channels, this will be shared across all connections.
 const peerCount = new Map();
 
@@ -55,7 +58,7 @@ class RoundRobinQueryHandler extends BaseQueryHandler {
     getChannelPeers() {
         const channelPeers = this.channel.getChannelPeers();
         return channelPeers.filter((channelPeer) => {
-            return channelPeer.isInRole(FABRIC_CONSTANTS.NetworkConfig.CHAINCODE_QUERY_ROLE)
+            return channelPeer.isInRole(FABRIC_CONSTANTS.NetworkConfig.CHAINCODE_QUERY_ROLE);
         });
     }
 
@@ -79,7 +82,7 @@ class RoundRobinQueryHandler extends BaseQueryHandler {
             try {
                 payload = await this._querySinglePeer(peer, txId, functionName, args);
                 const peerName = peer.getName();
-                const curCount = peerCount.get(peerName)
+                const curCount = peerCount.get(peerName);
                 peerCount.set(peerName, curCount + 1);
                 success = true;
                 break;

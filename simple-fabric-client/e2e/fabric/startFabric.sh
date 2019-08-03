@@ -1,5 +1,6 @@
 #!/bin/bash
 FABRIC_START_TIMEOUT=15
+VER=1.4.2
 # Exit on first error, print all commands.
 set -e
 

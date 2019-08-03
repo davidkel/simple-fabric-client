@@ -11,6 +11,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+'use strict';
 
 const QueryHandler = require('../../api/queryhandler');
 
@@ -62,7 +63,7 @@ class BaseQueryHandler extends QueryHandler {
      * version.
      */
     async queryByChaincode(request) {
-        const method = 'queryByChaincode';
+        //const method = 'queryByChaincode';
         try {
             const results = await this.channel.sendTransactionProposal(request);
             const responses = results[0];
@@ -84,7 +85,7 @@ class BaseQueryHandler extends QueryHandler {
             }
             const err = new Error('Payload results are missing from the chaincode query');
             throw err;
-        } catch(err) {
+        } catch (err) {
             throw err;
         }
     }

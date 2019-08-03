@@ -4,9 +4,8 @@ import Client = require('fabric-client');
 
 
 export interface InitOptions {
-	commitTimeout?: number;
-	eventHandlerFactory?: string;
-	eventHandlerOptions?: any;
+	eventManager?: string;
+	eventManagerOptions?: any;
 	queryHandler?: string;
 	queryHandlerOptions?: any;
 	useDiscovery?: boolean;
@@ -157,31 +156,45 @@ export abstract class QueryHandler {
 // -------------------------------------
 // Event Handler plugin type definitions
 // -------------------------------------
-export abstract class EventHandlerFactory {
-	constructor(channel: string, mspId: string, peerMap: Map<string, Client.Peer>, eventHandlerOptions: any);
+export abstract class EventManager {
+	constructor(channel: string, mspId: string, peerMap: Map<string, Client.Peer>, eventMgmtOptions: any);
 	initalize(): Promise<void>;
 	dispose(): void;
-	addEventHub(eventHub: ChannelEventHub): void;
-	getEventHubs(): ChannelEventHub[];  // FUTURE: Do we want an eventhub map against mspid ?
-	setEventHubs(availableEventHubs: ChannelEventHub[]): void;
-	checkEventHubs(): void;
-	disconnectEventHubs(): void;
-	abstract createTxEventHandler(txid: string): TxEventHandler;
+	//addEventHub(eventHub: ChannelEventHub): void;
+	//getEventHubs(): ChannelEventHub[];  // FUTURE: Do we want an eventhub map against mspid ?
+	//setEventHubs(availableEventHubs: ChannelEventHub[]): void;
+	//checkCommitEventHubs(): void;
+	//disconnectEventHubs(): void;
+    abstract createCommitHandler(txid: string): CommitHandler;
+    abstract createEventListener(): EventListener;
 
 	//chaincodeEventsEnabled(): boolean;
 	//abstract createChaincodeEventHandler(chaincodeId: string, eventName: string): ChaincodeEventHandler;
 	//abstract createBlockEventHandler(): BlockEventHandler;
 }
 
-export abstract class TxEventHandler {
+export abstract class CommitHandler {
+    abstract checkEventHubs(): void;
 	abstract startListening(): Promise<void>;
 	abstract waitForEvents(): Promise<void>;
 	abstract cancelListening(): void;
 }
 
+
+
+export abstract class EventListener {
+    registerBlockEvent(callback: () => void, options: object): object;
+    unRegisterBlockEvent(handle: object): void;
+
+    registerCCEvent(callback: () => void, options: object): object;
+    unRegisterCCEvent(handle: object): void;
+
+}
+
+
 // real implementation definition, bit annoying to have to define
 // it twice, once for JS users and again for TS users
-export enum DefaultEventHandlerStrategies {
+export enum DefaultCommitHandlerStrategies {
 	MSPID_SCOPE_ALLFORTX = 'MSPID_SCOPE_ALLFORTX',
 	MSPID_SCOPE_ANYFORTX = 'MSPID_SCOPE_ANYFORTX',
 	CHANNEL_SCOPE_ALLFORTX = 'CHANNEL_SCOPE_ALLFORTX',

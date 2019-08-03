@@ -15,39 +15,81 @@
 */
 'use strict';
 
-const {EventHandlerFactory} = require('../../api/eventhandler');
-const DefaultTxEventHandler = require('./defaulttxeventhandler');
-const EventHandlerConstants = require('./defaulteventstrategies');
+const {EventManager} = require('../../api/eventmanagement');
+const DefaultCommitHandler = require('./defaultcommithandler');
+const DefaultCommitStrategies = require('../../defaultcommitstrategies');
 
-class DefaultEventHandlerFactory extends EventHandlerFactory {
+class DefaultEventManager extends EventManager {
 
     constructor(channel, mspId, peerMap, options) {
         super(channel, mspId, peerMap, options || {});
 
-        if (!this.options.timeout) {
-            this.options.timeout = 60;
+        const defaultEventMgmtOptions = {
+            commitStrategy: DefaultCommitStrategies.MSPID_SCOPE_ALLFORTX,
+            commitTimeout: 60,  // rename to commitTimeout
+            useFullBlocksForAll: true  // Not sure yet about this one may not for tx commit only
+        };
+
+        // TODO: do an options merge
+        if (!this.options.commitStrategy) {
+            this.options.commitStrategy = defaultEventMgmtOptions.commitStrategy;
         }
 
+        if (!this.options.commitTimeout) {
+            this.options.commitTimeout = defaultEventMgmtOptions.commitTimeout;
+        }
+
+        // define the handler which creates and connects event hubs for the particular
+        // commit strategy.
         this.strategyMap = new Map([
-            [EventHandlerConstants.MSPID_SCOPE_ALLFORTX, this._connectEventHubsForMspid],
-            [EventHandlerConstants.MSPID_SCOPE_ANYFORTX, this._connectEventHubsForMspid],
-            [EventHandlerConstants.CHANNEL_SCOPE_ALLFORTX, this._connectAllEventHubs],
-            [EventHandlerConstants.CHANNEL_SCOPE_ANYFORTX, this._connectAllEventHubs]
+            [DefaultCommitStrategies.MSPID_SCOPE_ALLFORTX, this._connectEventHubsForMspid],
+            [DefaultCommitStrategies.MSPID_SCOPE_ANYFORTX, this._connectEventHubsForMspid],
+            [DefaultCommitStrategies.CHANNEL_SCOPE_ALLFORTX, this._connectAllEventHubs],
+            [DefaultCommitStrategies.CHANNEL_SCOPE_ANYFORTX, this._connectAllEventHubs]
         ]);
 
-        if (!this.options.strategy) {
-            this.options.strategy = EventHandlerConstants.MSPID_SCOPE_ALLFORTX;
+        if (!this.strategyMap.has(this.options.commitStrategy)) {
+            throw new Error('unknown event handling strategy: ' + this.options.commitStrategy);
         }
+    }
 
-        if (!this.strategyMap.has(this.options.strategy)) {
-            throw new Error('unknown event handling strategy: ' + this.options.strategy);
+    addCommitEventHub(eventHub) {
+        this.availableCommitEventHubs.push(eventHub);
+    }
+
+    getCommitEventHubs() {
+        return this.availableCommitEventHubs;
+    }
+
+    setCommitEventHubs(availableCommitEventHubs) {
+        this.availableCommitEventHubs = availableCommitEventHubs;
+    }
+
+    /**
+     * check the status of the event hubs and attempt to reconnect any event hubs.
+     * This is a non waitable request, should we have a waitable one ?
+     */
+    _checkCommitEventHubs() {
+        for(const hub of this.availableCommitEventHubs) {
+            hub.checkConnection(true);
+        }
+    }
+
+    disconnectEventHubs() {
+        for (const hub of this.availableCommitEventHubs) {
+            try {
+                hub.disconnect();
+            } catch (error) {
+                //
+            }
         }
     }
 
     async initialize() {
-        await super.initialize();
+        this.availableCommitEventHubs = [];
+
         if (!this.initialized) {
-            this.useFullBlocks = this.options.useFullBlocks || this.options.chaincodeEventsEnabled;
+            this.useFullBlocks = this.options.useFullBlocksForAll;
             if (this.useFullBlocks === null || this.useFullBlocks === undefined) {
                 this.useFullBlocks = false;
             }
@@ -57,17 +99,18 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
         }
     }
 
-    dispose() {
-        super.dispose();
+    async dispose() {
+        this.disconnectEventHubs();
+        this.availableCommitEventHubs = [];
         this.initialized = false;
     }
 
     async _establishEventHubsForStrategy() {
         // clear out the current set of event hubs
-        this.setEventHubs([]);
+        this.setCommitEventHubs([]);
         const connectStrategy = this.strategyMap.get(this.options.strategy);
         await connectStrategy.call(this, this.mspId);
-        if (this.getEventHubs().length === 0) {
+        if (this.getCommitEventHubs().length === 0) {
             throw new Error('No available event hubs found for strategy');
         }
     }
@@ -80,7 +123,6 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
      *
      * @param {*} mspId
      * @param {*} connectPromises
-     * @memberof DefaultEventHandlerFactory
      */
     _setupEventHubsForMspid(mspId, connectPromises) {
 
@@ -93,7 +135,7 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
                 // TODO: Need to add a timeout
                 let eventHub = this.channel.newChannelEventHub(orgPeer);
                 eventHub._EVH_mspId = mspId;  // insert the mspId into the object
-                this.addEventHub(eventHub);
+                this.addCommitEventHub(eventHub);
                 let connectPromise = new Promise((resolve, reject) => {
                     const regId = eventHub.registerBlockEvent(
                         (block) => {
@@ -119,7 +161,6 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
      * either connect successfully or fail
      *
      * @param {*} mspId
-     * @memberof DefaultEventHandlerFactory
      */
     async _connectEventHubsForMspid(mspId) {
         let connectPromises = [];
@@ -135,7 +176,6 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
      * either connect successfully or fail
      *
      * @param {*} mspId
-     * @memberof DefaultEventHandlerFactory
      */
     async _connectAllEventHubs(mspId) {
         console.log('in _connectAllEventHubs');
@@ -154,13 +194,16 @@ class DefaultEventHandlerFactory extends EventHandlerFactory {
      *
      * @param {*} txid
      * @returns
-     * @memberof DefaultEventHandlerFactory
      */
-    createTxEventHandler(txid) {
+    createCommitHandler(txid) {
         // pass in all available eventHubs to listen on, the handler decides when to resolve based on strategy
-        // a TxEventHandler should check that the available ones are usable when appropriate.
-        return new DefaultTxEventHandler(this, txid);
+        // a CommitHandler should check that the available ones are usable when appropriate.
+        return new DefaultCommitHandler(this, txid);
+    }
+
+    createEventListener() {
+    //  return new DefaultEventListener(this);
     }
 }
 
-module.exports = DefaultEventHandlerFactory;
+module.exports = DefaultEventManager;

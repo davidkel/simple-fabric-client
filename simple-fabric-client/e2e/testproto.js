@@ -5,7 +5,6 @@
 // export CRYPTO_PKCS11_PIN="98765432"
 // export CRYPTO_PKCS11_SLOT="0"
 
-// CouchDBWallet, EventHandlerConstants also available
 const {Network, IDManager, FileSystemWallet, InMemoryWallet, HSMWalletMixin, X509WalletMixin} = require('..');
 
 const fs = require('fs');
@@ -63,7 +62,7 @@ const fs = require('fs');
         network = new Network();
         await network.initialize(JSON.parse(buffer.toString()), {
             wallet: wallet,
-            eventHandlerOptions: {
+            eventMgmtOptions: {
                 useFullBlocks: true
             }
         });
@@ -92,7 +91,7 @@ const fs = require('fs');
         await queryNetwork.initialize(JSON.parse(buffer.toString()), {
             wallet: wallet,
             identity: 'admin',
-            eventHandlerFactory: null
+            eventManager: null
         });
 
 

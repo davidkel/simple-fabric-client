@@ -14,7 +14,7 @@
 
 'use strict';
 
-const HLFTxEventHandler = require('../../../lib/impl/event/defaulttxeventhandler');
+const HLFTxEventHandler = require('../../../lib/impl/event/defaultcommithandler');
 const ChannelEventHub = require('fabric-client/lib/ChannelEventHub');
 
 const sinon = require('sinon');

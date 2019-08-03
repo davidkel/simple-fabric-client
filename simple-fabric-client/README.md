@@ -30,13 +30,13 @@ In order to be able to easily test this prototype something was needed that prov
 
 ## API package
 This defines a base set of superclases for all the pluggable capabilities this package offers
-- eventhandler: how to manage and monitor peer event hubs
+- eventmanagement: how to manage and monitor peer event hubs
 - query: strategy for which peers to query based on a list of available peers
 - wallet: definition of a wallet class
 - walletmixin: definition of a mixin for the wallet class
 
 ## impl/event
-This contains 2 classes that implement the interface defined in the eventhandler file. The default implementation is designed to support multiple strategies of when is the right time to notify the client. The following 4 strategies are implemented and can be selected when creating a network instance
+This contains 2 classes that implement the interface defined in the eventmanagement file. The default implementation is designed to support multiple strategies of when is the right time to notify the client. The following 4 strategies are implemented and can be selected when creating a network instance
 
 - S1: wait for all peers associated with the current identity's mspId to emit committed events, or disconnect the event hubs due to error. A client is unblocked successfully so long as all peers respond or error out with at least 1 peer responding with committed (This is the DEFAULT)
 - S2: wait for the first peer associated with the current identity's mspId to emit a committed event
@@ -48,10 +48,10 @@ if the strategy cannot be satisfied within a timeout period then an error is thr
 if at any time a event hub disconnects due to an error and that means the strategy cannot be satisified then an error is thrown
 
 
-### DefaultEventHandlerFactory
+### DefaultEventManager
 The `Contact` class wants to be able to get an event handler for each transaction it needs to listen for. Also (but not implemented currently), there needs to be a chaincode event handler as well, probably won't be a need for a block event handler. This implementation provides a factory for these handlers. What it also does is provide management of the event hubs, ie only connecting to the relevant ones based on the strategy, and being able to disconnect them when required.
 
-### DefaultTxEventHandler
+### DefaultCommitHandler
 This provides the implementation to listen for the transaction committed events and ensure either unblock the client when the strategy is satisfied or throw an error if a strategy cannot be satisfied.
 
 ## impl/query
