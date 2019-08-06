@@ -43,23 +43,23 @@ class DefaultCommitHandler extends CommitHandler {
 
     /**
      * Construct a Tx Event Handler.
-     * @param {EventHub[]} eventHubs the event hubs to listen for tx events
+     * @param {EventHub[]} eventHubs the event hubs to listen for tx events  //TODO: fix
      * @param {String} txId the txid that is driving the events to occur
      * @param {Integer} timeout how long (in seconds) to wait for events to occur.
      */
-    constructor(factory, txId) {
+    constructor(eventMgr, txId) {
         super();
-        this.eventHubs = factory.getEventHubs();
+        this.eventHubs = eventMgr.getCommitEventHubs();
         if (!this.eventHubs || this.eventHubs.length === 0) {
             throw new Error('No event hubs defined');
         }
         if (!txId) {
             throw new Error('No transaction id provided');
         }
-        this.factory = factory;
+        this.eventMgr = eventMgr;
         this.txId = txId;
-        this.mspId = factory.mspId;
-        this.options = factory.options;
+        this.mspId = eventMgr.mspId;  // TODO: Need to handle
+        this.options = eventMgr.options;  //TODO: Need to handle
 
         this.eventsByMspId = null;
         this.notificationPromise = null;
@@ -111,7 +111,7 @@ class DefaultCommitHandler extends CommitHandler {
             }
         });
         if (reestablish) {
-            await this.factory._establishEventHubsForStrategy();
+            await this.eventMgr._establishEventHubsForStrategy();
         }
 
         if (this.eventsByMspId.size === 0) {
@@ -138,7 +138,7 @@ class DefaultCommitHandler extends CommitHandler {
             total += entry.initial;
         });
         if (total < 1) {
-            await this.factory._establishEventHubsForStrategy();
+            await this.eventMgr._establishEventHubsForStrategy();
             this.eventsByMspId.forEach((entry) => {
                 total += entry.initial;
             });
@@ -257,7 +257,7 @@ class DefaultCommitHandler extends CommitHandler {
             }
         }
 
-        const connectStrategy = this.strategyMap.get(this.options.strategy);
+        const connectStrategy = this.strategyMap.get(this.options.commitStrategy);
         await connectStrategy.checkInitialState.call(this);
 
         return connectedHubs;
@@ -271,16 +271,16 @@ class DefaultCommitHandler extends CommitHandler {
         }
         this.eventsByMspId.set(mspId, count);
 
-        const connectStrategy = this.strategyMap.get(this.options.strategy);
+        const commitStrategy = this.strategyMap.get(this.options.commitStrategy);
         if (!errorReceived) {
-            return connectStrategy.eventReceived.call(this, mspId, count);
+            return commitStrategy.eventReceived.call(this, mspId, count);
         } else {
-            return connectStrategy.errorReceived.call(this, mspId, count);
+            return commitStrategy.errorReceived.call(this, mspId, count);
         }
     }
 
-    checkEventHubs() {
-        this.factory._checkCommitEventHubs();
+    quickCheckEventHubs() {
+        this.eventMgr._checkCommitEventHubs();
     }
 
     /**

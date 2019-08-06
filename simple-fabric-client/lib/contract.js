@@ -12,20 +12,18 @@
 */
 'use strict';
 
-const EventEmitter = require('events');
-
-class Contract extends EventEmitter {
+class Contract {
 
     constructor(channel, chaincodeId, functionNamespace, eventManager, queryHandler, network) {
-        super();
         this.channel = channel;
         this.chaincodeId = chaincodeId;
         this.functionNamespace = functionNamespace;
 
-
         this.eventManager = eventManager;
         this.queryHandler = queryHandler;
         this.network = network;
+        this.verifyResponses = this.network.getOptions().verifyResponses;
+        this.compareResponses = this.network.getOptions().compareResponses;
     }
 
     /**
@@ -38,6 +36,8 @@ class Contract extends EventEmitter {
      * @throws if there are no valid responses at all.
      * @private
      */
+    //TODO: 1. handle isProposalResponse errors
+    // 2. handle new options for verify and compoare
     _validatePeerResponses(responses) {
         if (!responses.length) {
             throw new Error('No results were returned from the request');
@@ -48,7 +48,7 @@ class Contract extends EventEmitter {
         const invalidResponseMsgs = [];
 
         responses.forEach((responseContent) => {
-            if (responseContent instanceof Error) {
+            if (responseContent instanceof Error && !responseContent.isProposalResponse) {
                 const warning = `Response from attempted peer comms was an error: ${responseContent}`;
                 invalidResponseMsgs.push(warning);
                 invalidResponses.push(responseContent);
@@ -107,6 +107,7 @@ class Contract extends EventEmitter {
      */
     async submitTransaction(transactionName, parameters, transientMap, txId) {
         //TODO: Need to check parameters
+        //TODO: Handle transient map and txid appropriately
 
         if (!txId) {
             txId = this.createTxId();
@@ -121,7 +122,7 @@ class Contract extends EventEmitter {
         let commitHandler;
         if (this.eventManager) {
             commitHandler = this.eventManager.createCommitHandler(txId.getTransactionID());
-            commitHandler.checkEventHubs();
+            commitHandler.quickCheckEventHubs();
         }
 
         // Submit the transaction to the endorsers.
@@ -136,6 +137,7 @@ class Contract extends EventEmitter {
         };
 
         // node sdk will target all peers on the channel that are endorsingPeer or do something special for a discovery environment
+        //TODO: add in timeout support rather than leave at node-sdk default
         const results = await this.channel.sendTransactionProposal(request);
         const proposalResponses = results[0];
 
@@ -172,6 +174,9 @@ class Contract extends EventEmitter {
             try {
                 await commitHandler.waitForEvents();
             } catch(err) {
+                // only compare the results if there is a failure to commit, however that failure could
+                // be for various reasons and not an endorsement failure. Maybe we should also do an
+                // explicit check before trying to commit as well.
                 // TODO: Need to distinguish between Bad Peer response and something else
                 if (validResponses && validResponses.length >= 2 && !this.channel.compareProposalResponseResults(validResponses)) {
                     const warning = 'Peers do not agree, Read Write sets differ';

@@ -74,12 +74,18 @@ class Ledger {
         //TODO: should sort peer list to the identity org initializing the channel.
         //TODO: Candidate to push to low level node-sdk.
 
-        // TODO: need to deal with discovery here as not sure it will have roles.
-        const ledgerPeers = this.channel.getPeers().filter((cPeer) => {
+        let ledgerPeers = this.channel.getPeers().filter((cPeer) => {
             return cPeer.isInRole(FabricConstants.NetworkConfig.LEDGER_QUERY_ROLE);
         });
 
+        // if no channel has been defined in the ccp and so a simulated one has been
+        // created then we need look for an alternative list of peers.
         if (ledgerPeers.length === 0) {
+            ledgerPeers = this.gateway.getClient().getPeersForOrg();
+        }
+
+        if (ledgerPeers.length === 0) {
+            //TODO: Better error message
             throw new Error('no suitable peers available to initialize from');
         }
 
@@ -172,7 +178,9 @@ class Ledger {
 
     // get a contract or return a cached contract
     getContract(chaincodeId, functionNamespace) {
-        // check initialized flag
+        if (!this.initialized) {
+            throw new Error('Unable to get contract as ledger has failed to initialize');
+        }
         // Create the new Contract
         const contractKey = functionNamespace ? chaincodeId + '~' + functionNamespace : chaincodeId;
         let contract = this.contracts.get(contractKey);

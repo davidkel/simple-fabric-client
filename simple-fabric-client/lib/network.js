@@ -21,6 +21,11 @@ const logger = require('./logger').getLogger('Network');
 const utils = require('./utils');
 
 
+//TODO: Overall todos
+// 1. Better discovery plus discovery that when changes everything dynamically adapts
+// 2. implement the event listener part
+// 3. better response handling including errors
+
 class Network {
 
     constructor() {
@@ -31,7 +36,9 @@ class Network {
 
         // default options (plugin options are not defaulted here as may not be applicable if plugin changed)
         this.options = {
+            // the default event manager
             eventManager: './impl/event/defaulteventmanager',
+            // the default query handler
             queryHandler: './impl/query/defaultqueryhandler',
             // TODO: discovery-cache-age (only used by getDiscoveryResults)
             // TODO: We need a timeout when submitTransaction is called to determine if a refresh should
@@ -43,7 +50,11 @@ class Network {
                 // discoveryProtocol: 'grpcs',
                 // asLocalhost: false
                 // discoveryRefresh: 300000 (TODO: on a timeout or only when submit is done ?)
-            }
+            },
+            // verify proposal responses
+            verifyResponses: false,
+            // compare proposal responses
+            compareResponses: false
         };
     }
 
@@ -52,23 +63,11 @@ class Network {
      *
      * @param {*} ccp
      * @param {*} options
-     * @memberof Network
      */
     async initialize(ccp, options) {
-        if (!options || !options.wallet) {
-            throw new Error('A wallet must be assigned to a Network instance');
+        if (!options || (!options.wallet && !options.identity)) {
+            throw new Error('A wallet and identity must be assigned to a Network instance');
         }
-
-        /*
-        // if the default handlers have been changed, delete the default options before merging.
-        if (options.eventManager && this.options.eventManager !== options.eventManager) {
-            console.log('deleting event handler options');
-            delete this.options.eventMgmtOptions;
-        }
-        if (options.queryHandler && this.options.queryHandler !== options.queryHandlerFactory) {
-            delete this.options.queryHandlerOptions;
-        }
-        */
 
         utils._mergeOptions(this.options, options);
 
@@ -78,7 +77,7 @@ class Network {
                 this.eventManagerClass = require(this.options.eventManager);
             } catch(error) {
                 console.log(error);
-                throw new Error('unable to load provided event handler factory: ' + this.options.eventManager);
+                throw new Error('unable to load provided event manager: ' + this.options.eventManager);
             }
         }
 
@@ -101,21 +100,18 @@ class Network {
             this.client = Client.loadFromConfig(ccp);
         }
 
-        // setup an initial identity for the network
-        if (options.identity) {
-            this.currentIdentity = await options.wallet.setUserContext(this.client, options.identity);
-        } else {
-            //TODO: throw error, must provide an identity and a wallet.
-        }
+        this.currentIdentity = await options.wallet.setUserContext(this.client, options.identity);
+
         if (options.clientTls) {
             if (options.clientTls.identity) {
                 const tlsIdentity = await options.wallet.export(options.clientTls.identity);
+                //TODO: Does export throw an error or should I check tlsIdentity ?
                 this.client.setTlsClientCertAndKey(tlsIdentity.certificate, tlsIdentity.privateKey);
             } else if (options.clientTls.certificate && options.clientTls.key) {
                 this.client.setTlsClientCertAndKey(options.clientTls.certificate, options.clientTls.key);
 
             } else {
-                //TODO: Throw error
+                throw new Error('client TLS option set but no wallet label or cert/key provided');
             }
         }
     }
@@ -144,7 +140,6 @@ class Network {
      * get the current identity
      *
      * @returns
-     * @memberof Network
      */
     getCurrentIdentity() {
         return this.currentIdentity;
@@ -154,7 +149,6 @@ class Network {
      * get the underlying client instance
      *
      * @returns
-     * @memberof Network
      */
     getClient() {
         return this.client;
@@ -169,8 +163,8 @@ class Network {
     async _createEventManager(channel, peerMap) {
 
         if (this.eventManagerClass) {
-            // TODO: Should not use private var of User object (_mspId)
-            const currentmspId = this.getCurrentIdentity()._mspId;
+            // const currentmspId = this.getCurrentIdentity()_mspId;
+            const currentmspId = this.getCurrentIdentity().getIdentity().getMSPId();
             const eventManager = new this.eventManagerClass(
                 channel,
                 currentmspId,
@@ -186,7 +180,8 @@ class Network {
     // create an instance of the query handler and initialise it.
     async _createQueryHandler(channel, peerMap) {
         if (this.queryHandlerClass) {
-            const currentmspId = this.getCurrentIdentity()._mspId;
+            // const currentmspId = this.getCurrentIdentity()._mspId;
+            const currentmspId = this.getCurrentIdentity().getIdentity().getMSPId();
             const queryHandler = new this.queryHandlerClass(
                 channel,
                 currentmspId,
@@ -214,15 +209,20 @@ class Network {
     // get a ledger initialise it and cache it, otherwise use the cached version
     async getLedger(channelName) {
         const existingLedger = this.ledgers.get(channelName);
-        if (!existingLedger) {
-            // TODO: will throw an error if no channel and discovery is being used.
-            const channel = this.client.getChannel(channelName);
-            const newLedger = new Ledger(this, channel);
-            await newLedger._initialize();
-            this.ledgers.set(channelName, newLedger);
-            return newLedger;
+        if (existingLedger) {
+            return existingLedger;
         }
-        return existingLedger;
+
+        let channel = this.client.getChannel(channelName, false);
+        if (channel === null) {
+            channel = this.client.newChannel(channelName);
+        }
+
+        const newLedger = new Ledger(this, channel);
+        await newLedger._initialize();
+        this.ledgers.set(channelName, newLedger);
+        return newLedger;
+
     }
 }
 

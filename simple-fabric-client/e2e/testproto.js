@@ -58,14 +58,7 @@ const fs = require('fs');
             });
         }
 
-        // Create a network bound to a standard filesystem wallet
-        network = new Network();
-        await network.initialize(JSON.parse(buffer.toString()), {
-            wallet: wallet,
-            eventMgmtOptions: {
-                useFullBlocks: true
-            }
-        });
+ 
 
         // see if admin exists in the standard non hsm wallet, if not get an identity from the Id Manager and stick it in the wallet
         const adminExists = await wallet.exists('admin');
@@ -83,7 +76,16 @@ const fs = require('fs');
             console.log(`name=${idInfo.label}, mspId=${idInfo.mspId}, identifier=${idInfo.identifier}`);
         }
 
-        await network.setIdentity('admin');
+        //await network.setIdentity('admin');
+        // Create a network bound to a standard filesystem wallet
+        network = new Network();
+        await network.initialize(JSON.parse(buffer.toString()), {
+            wallet: wallet,
+            identity: 'admin',
+            eventMgmtOptions: {
+                useFullBlocks: true
+            }
+        });
 
         // create a query only network
         console.log('creating a query only network instance');
@@ -135,6 +137,7 @@ const fs = require('fs');
             ledger = await network.getLedger('composerchannel');
             contract = await ledger.getContract('demo');
 
+            /*
             let eventHubs = ledger.getEventHubs();
 
             eventHubs[0].registerBlockEvent((block) => {  //TODO: Note that eventHubs have a special field defining which mspId they are in.
@@ -142,16 +145,18 @@ const fs = require('fs');
                 console.log(block);
                 blockToQuery = block.header.number;
             });
+            */
 
             response = await contract.submitTransaction('invoke', ['key1', 'key2', '50']);
             console.log('got response 1: ' + response);
 
+            /*
             let rawchannel = ledger.getChannel();
             let blk = await rawchannel.queryBlock(blockToQuery * 1);
             console.log('blk--->');
             console.log(JSON.stringify(blk.data.data[0].payload.data.actions));
             console.log('<--- Finish testing network with file system identity');
-
+            */
 
 
             console.log('---> start testing query only network with file system identity:');

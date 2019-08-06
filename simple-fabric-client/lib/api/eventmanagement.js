@@ -43,7 +43,7 @@ class EventManager {
     }
 
     /**
-     * initialise the factory. This would establish the event hubs to be used
+     * initialise the event manager. This would establish the event hubs to be used
      * perhaps based on options and mspids
      */
     async initialize() {
@@ -58,13 +58,16 @@ class EventManager {
     }
 
     /**
-     * create a tx event handler for the specific transaction id.
+     * create a commit handler for the specific transaction id.
      * @param {string} txid Transaction id
      */
     createCommitHandler(txid) {
         throw new Error('not implemented');
     }
 
+    /**
+     * create an event listener
+     */
     createEventListener() {
         throw new Error('not implemented');
     }
@@ -73,7 +76,7 @@ class EventManager {
 
 class CommitHandler {
 
-    checkEventHubs() {
+    quickCheckEventHubs() {
         // optional fast check of the event hubs
     }
 
@@ -100,31 +103,37 @@ class CommitHandler {
     }
 }
 
-class EventListener {
-    registerBlockListener(callback) {
+// just replicate the channelEventHub interfaces, what the event listener will do is
+// 1. locate an appropriate eventhub to use
+// 2. recover and replay if that event hub errors
 
+// what kind of config options can this have ?
+// 1. useFullBlocks
+// 2. shareCommitEventHubs (would enable full blocks on commit event hubs)
+class EventListener {
+    registerBlockListener(onEvent, onError, options) {
+        throw new Error('Not implemented');
     }
 
     unRegisterBlockListener(handle) {
-
+        throw new Error('Not implemented');
     }
 
-    registerCCListener(chaincodeId, callback) {
-
+    registerChaincodeListener(chaincodeId, eventname, onEvent, onError, options) {
+        throw new Error('Not implemented');
     }
 
-    unRegisterCCListener(handle) {
-
+    unRegisterChaincodeListener(handle) {
+        throw new Error('Not implemented');
     }
 
-    registerTxListener(txid, callback) {
-
+    registerTxListener(txid, onEvent, onError, options) {
+        throw new Error('Not implemented');
     }
 
     unRegisterTxListener(handle) {
-
+        throw new Error('Not implemented');
     }
-
 }
 
 

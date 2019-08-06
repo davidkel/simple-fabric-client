@@ -108,7 +108,7 @@ class DefaultEventManager extends EventManager {
     async _establishEventHubsForStrategy() {
         // clear out the current set of event hubs
         this.setCommitEventHubs([]);
-        const connectStrategy = this.strategyMap.get(this.options.strategy);
+        const connectStrategy = this.strategyMap.get(this.options.commitStrategy);
         await connectStrategy.call(this, this.mspId);
         if (this.getCommitEventHubs().length === 0) {
             throw new Error('No available event hubs found for strategy');
