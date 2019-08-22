@@ -232,6 +232,10 @@ class DefaultCommitHandler extends CommitHandler {
     }
 
 
+    /**
+     * add in to the list of eventhubs to wait on, only the ones which we know are connected
+     * once we have that list, check they satisfy the strategy.
+     */
     async _getConnectedHubs() {
         // requires that we know that all connect requests have been processed (either successfully or failed to connect)
         const connectedHubs = [];
@@ -279,6 +283,9 @@ class DefaultCommitHandler extends CommitHandler {
         }
     }
 
+    /**
+     * background request to check the event hubs are connected
+     */
     quickCheckEventHubs() {
         this.eventMgr._checkCommitEventHubs();
     }

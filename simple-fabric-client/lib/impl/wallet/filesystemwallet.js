@@ -79,18 +79,14 @@ class FileSystemWallet extends BaseWallet {
             return [];
         }
 
-        if (dirList && dirList.length > 0) {
-            console.log('dirlist processing');
-            for (const label of dirList) {
-                const isDir = await this._isDirectory(label);
-                const exists = await fs.exists(Path.join(this._getPartitionedPath(label), label));
-                console.log(label, isDir, exists);
-                if (isDir && exists) {
-                    labelList.push(label);
-                }
-            }
-        }
-        console.log('labellist', labelList);
+		if (dirList && dirList.length > 0) {
+			for (const label of dirList) {
+				const reallyExists = await this.exists(label);
+				if (reallyExists) {
+					labelList.push(label);
+				}
+			}
+		}
         return labelList;
     }
 
@@ -106,11 +102,16 @@ class FileSystemWallet extends BaseWallet {
         });
     }
 
-    async exists(label) {
-        const partitionedPath = this._getPartitionedPath(label);
-        const exists = await fs.exists(partitionedPath);
-        return exists;
-    }
+	async exists(label) {
+        let exists = false;
+        // check there is a partitioned path
+		const isDir = await this._isDirectory(label);
+		if (isDir) {
+            // check there is a metadata file
+			exists = await fs.exists(Path.join(this._getPartitionedPath(label), label));
+		}
+		return exists;
+	}
 }
 
 module.exports = FileSystemWallet;
